@@ -1,0 +1,10 @@
+# Données : ne jamais pousser d'export réel (dépôt public)
+*.csv
+*.xlsx
+*.pst
+data/
+exports/
+*.json
+!package.json
+node_modules/
+.DS_Store

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Suivi réservations AO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%231f4e78%22/%3E%3Cpath d=%22M4 11V7M8 11V4M12 11V8%22 stroke=%22white%22 stroke-width=%222%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+<!-- Connexion -->
+<section id="v-login" class="hidden">
+  <div class="card login">
+    <h1>Suivi des réservations d'AO</h1>
+    <p class="sub">Connexion réservée aux adresses INTM. Tu reçois un lien par mail, sans mot de passe.</p>
+    <form id="fLogin" class="row" style="margin-top:12px">
+      <input type="email" id="email" placeholder="prenom.nom@intm.fr" required style="flex:1">
+      <button class="btn primary">Recevoir le lien</button>
+    </form>
+    <p class="sub" id="loginMsg"></p>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+<header>
+  <div>
+    <h1>Suivi des réservations d'AO</h1>
+    <div class="sub" id="maj"></div>
+  </div>
+  <span class="spacer"></span>
+  <button class="btn" id="bEquipe" aria-haspopup="true">Équipe : tout le monde ▾</button>
+  <select id="periode" aria-label="Période">
+    <option value="all">Toute l'année</option>
+    <option value="m0">Mois en cours</option>
+    <option value="m1">Mois dernier</option>
+    <option value="q0">Trimestre en cours</option>
+    <option value="q1">Trimestre dernier</option>
+  </select>
+  <button class="btn" data-go="import">Importer</button>
+  <button class="btn" data-go="reglages" title="Équipes, annuaire, corrections">Réglages</button>
+  <button class="btn" id="theme" title="Clair / sombre">◐</button>
+</header>
+<div id="panelEquipe" class="panel hidden"></div>
+<div class="equipe-bar hidden" id="equipeBar"></div>
+<div id="alertes"></div>
+
+<!-- Accueil -->
+<section class="view on" id="v-home">
+  <div class="tiles">
+    <button class="tile" id="tWait">
+      <div class="lbl"><span class="dot" style="background:var(--bad)"></span>AO réservés non traités</div>
+      <div class="val" id="nWait">0</div>
+      <div class="note" id="nWaitNote"></div>
+    </button>
+    <div class="tile" id="tLate" style="cursor:pointer">
+      <div class="lbl"><span class="dot" style="background:var(--warn)"></span>En retard : réservés depuis plus de
+        <select id="seuil" aria-label="Seuil de retard" style="padding:2px 4px;font-size:13px"></select> jours
+      </div>
+      <div class="val" id="nLate">0</div>
+      <div class="note" id="nLateNote"></div>
+    </div>
+    <div class="tile" id="tFree" style="grid-column:1/-1;cursor:pointer">
+      <div class="lbl"><span class="dot" style="background:var(--accent)"></span>AO en cours non réservés : sortis depuis plus de
+        <select id="seuilF" aria-label="Seuil des AO non réservés" style="padding:2px 4px;font-size:13px"></select> jours
+      </div>
+      <div class="val" id="nFree">0</div>
+      <div class="note" id="nFreeNote"></div>
+    </div>
+    <div class="tile">
+      <div class="lbl">Top réserveurs · AO en cours non traités</div>
+      <ul class="rank" id="rkStock"></ul>
+      <button class="more" data-rank="wait">Voir tout le classement →</button>
+    </div>
+    <div class="tile">
+      <div class="lbl">Top réserveurs · global sur la période</div>
+      <ul class="rank" id="rkGlobal"></ul>
+      <button class="more" data-rank="total">Voir tout le classement →</button>
+    </div>
+  </div>
+</section>
+
+<!-- Liste des non traités -->
+<section class="view" id="v-list">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2 id="listTitle"></h2><span class="spacer"></span>
+    <span class="count" id="listCount"></span>
+    <button class="btn" data-csv="list">Exporter CSV</button>
+  </div>
+  <div class="tablebox"><table id="tList"></table></div>
+</section>
+
+<!-- Non réservés -->
+<section class="view" id="v-free">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2 id="freeTitle"></h2><span class="spacer"></span>
+    <span class="count" id="freeCount"></span>
+    <button class="btn" data-csv="free">Exporter CSV</button>
+  </div>
+  <div class="tablebox"><table id="tFreeL"></table></div>
+</section>
+
+<!-- Classement -->
+<section class="view" id="v-rank">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2>Classement des réserveurs</h2><span class="spacer"></span>
+    <button class="btn" data-csv="rank">Exporter CSV</button>
+  </div>
+  <div class="tablebox"><table id="tRank"></table></div>
+</section>
+
+<!-- Fiche personne -->
+<section class="view" id="v-person">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2 id="pName"></h2>
+  </div>
+  <div class="mini">
+    <div class="tile"><div class="lbl">En cours non traités</div><div class="val" id="pWait"></div></div>
+    <div class="tile"><div class="lbl">Attente moyenne</div><div class="val" id="pAvg"></div><div class="note hide-m">sur les AO en cours</div></div>
+    <div class="tile"><div class="lbl">Plus ancien ouvert</div><div class="val" id="pOld"></div><div class="note" id="pOldRef"></div></div>
+  </div>
+  <div class="bar-top">
+    <div class="chips"><button class="chip" id="cOnlyWait" aria-pressed="true">Non traités uniquement</button></div>
+    <span class="spacer"></span><span class="count" id="pCount"></span>
+    <button class="btn" data-csv="person">Exporter CSV</button>
+  </div>
+  <div class="tablebox"><table id="tPerson"></table></div>
+  <p class="sub">Clique sur un AO pour voir les échanges et corriger l'attribution.</p>
+</section>
+
+<!-- Import -->
+<section class="view" id="v-import">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2>Importer de nouvelles données</h2>
+  </div>
+  <div class="grid2">
+    <label class="drop" id="dMails"><input type="file" id="fMails" accept=".csv,text/csv">
+      <b>Mails (CSV Outlook)</b><br><span>Export du dossier des réponses aux AO</span></label>
+    <label class="drop" id="dPwise"><input type="file" id="fPwise" accept=".json,application/json">
+      <b>Extraction PWise (JSON)</b><br><span>Liste des AO et de leur statut</span></label>
+  </div>
+  <div class="row" style="margin:12px 0">
+    <button class="btn primary" id="bAnalyser" disabled>Analyser</button>
+    <span class="sub">Rien n'est enregistré avant ta validation. Un même mail importé deux fois n'est compté qu'une fois.</span>
+  </div>
+  <div id="apercu"></div>
+</section>
+
+<!-- Réglages -->
+<section class="view" id="v-reglages">
+  <div class="bar-top">
+    <button class="back" data-go="home">← Accueil</button>
+    <h2>Réglages</h2>
+  </div>
+  <div class="tabs" id="tabsReglages">
+    <button class="chip" data-tab="equipes" aria-pressed="true">Équipes</button>
+    <button class="chip" data-tab="annuaire" aria-pressed="false">Annuaire des BM</button>
+    <button class="chip" data-tab="corrections" aria-pressed="false">Corrections</button>
+    <button class="chip" data-tab="imports" aria-pressed="false">Historique des imports</button>
+  </div>
+  <div id="reglages"></div>
+</section>
+
+<footer id="foot"></footer>
+</div>
+</div>
+
+<dialog id="dlg"></dialog>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
