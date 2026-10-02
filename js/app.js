@@ -2,7 +2,7 @@ import { REGLES, STATUTS, TYPES, VERSION } from './regles.js';
 import { calculer, filtrerBM } from './calcul.js';
 import { ouvrirStore } from './store.js';
 import { preparerImport, validerImport } from './import.js';
-import { classer } from './classify.js';
+import { classer, sansSignature } from './classify.js';
 import { trigramme } from './annuaire.js';
 
 // ---------------------------------------------------------------- utilitaires
@@ -152,7 +152,7 @@ function table(sel, key, cols, rows, onRow) {
   LAST[key] = { cols, rows };
   const el = $(sel);
   el.innerHTML = `<thead><tr>${cols.map(x => `<th data-k="${x.k}" class="${x.k === k ? 'sorted' : ''} ${x.m ? 'hide-m' : ''}" data-dir="${d > 0 ? '▲' : '▼'}" ${x.num ? 'style="text-align:right"' : ''}>${x.h}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map((r, i) => `<tr class="${onRow ? 'click' : ''}" data-i="${i}">${cols.map(x => `<td class="${x.num ? 'num' : ''} ${x.m ? 'hide-m' : ''}">${x.f ? x.f(r) : esc(x.v(r) ?? '')}</td>`).join('')}</tr>`).join('')
+    <tbody>${rows.map((r, i) => `<tr class="${onRow ? 'click' : ''}" data-i="${i}">${cols.map(x => `<td class="${x.num ? 'num' : ''} ${x.m ? 'hide-m' : ''} ${x.k === 'titre' || (x.k === 'bm' && cols[0].k === 'bm') ? 'col-main' : ''}" data-label="${esc(x.h)}">${x.f ? x.f(r) : esc(x.v(r) ?? '')}</td>`).join('')}</tr>`).join('')
       || `<tr><td colspan="${cols.length}" class="muted">Rien à afficher.</td></tr>`}</tbody>`;
   el.querySelectorAll('th').forEach(th => th.onclick = () => {
     const nk = th.dataset.k, col = cols.find(x => x.k === nk);
@@ -259,9 +259,9 @@ function render(garderPanel = false) {
   }
   if (S.vue === 'import') renderImport();
   if (S.vue === 'reglages') renderReglages();
-  $('#foot').innerHTML = `Règles : périmètre PWise et OneProcTool. L’AO revient au dernier BM qui l’a revendiqué (« c’est chez moi ») ; sans revendication, au premier positionné ; un BM qui cède la main est retiré ; une correction manuelle prime.
+  $('#foot').innerHTML = `<details><summary>Règles de calcul · version ${VERSION}</summary>Périmètre PWise et OneProcTool. L’AO revient au dernier BM qui l’a revendiqué (« c’est chez moi ») ; sans revendication, au premier positionné ; un BM qui cède la main est retiré ; une correction manuelle prime.
     « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. « Réponse soumise » = au moins un profil proposé sur la page de détail PWise, statut « RFC soumis / retenu », ou mail de résultat reçu (refus, acceptation de l’offre, résultats RFC). OneProcTool n’a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
-    Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).<br>Version ${VERSION}`;
+    Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).</details>`;
 }
 
 function renderAlertes() {
@@ -288,7 +288,7 @@ function ouvrirAO(ref) {
     <div class="sub">${esc(ref)} · ${esc(fiche.statut_pwise || (r?.plateforme === 'OneProcTool' ? 'OneProcTool' : 'statut inconnu'))}${fiche.organisation ? ' · ' + esc(fiche.organisation) : ''}</div>
     <p>Attribué à <b>${esc(r?.bm || 'personne')}</b>${r ? ` <span class="tag">${{ revendication: 'dernière revendication', positionnement: 'premier positionné', correction: 'correction manuelle' }[r.via]}</span>` : ''}</p>
     <h3 style="font-size:13px;color:var(--ink-2)">Échanges (${msgs.length})</h3>
-    <ul class="fil">${msgs.map(m => { const c = classer(m.texte, m.auteur); return `<li><b>${esc(m.auteur)}</b> <span class="tag">${esc(c.pour ? `désigne « ${c.pour} »` : c.type)}</span><div class="t">${m.date ? fdh(m.date) : 'date inconnue'}</div>${esc(m.texte || '(réponse vide)')}</li>`; }).join('') || '<li class="muted">Aucun mail.</li>'}</ul>
+    <ul class="fil">${msgs.map(m => { const c = classer(m.texte, m.auteur); return `<li><b>${esc(m.auteur)}</b> <span class="tag">${esc(c.pour ? `désigne « ${c.pour} »` : c.type)}</span><div class="t">${m.date ? fdh(m.date) : 'date inconnue'}</div>${esc(sansSignature(m.texte) || '(réponse vide ou signature seule)')}</li>`; }).join('') || '<li class="muted">Aucun mail.</li>'}</ul>
     <h3 style="font-size:13px;color:var(--ink-2)">Corriger l’attribution</h3>
     <div class="row">
       <select id="dBM" style="flex:1">

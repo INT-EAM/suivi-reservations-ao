@@ -28,23 +28,24 @@
 
 <div id="app" class="hidden">
 <header>
-  <div>
+  <div class="titre">
     <h1>Suivi des réservations d'AO</h1>
     <div class="sub" id="maj"></div>
   </div>
-  <span class="spacer"></span>
-  <button class="btn" id="bEquipe" aria-haspopup="true">Équipe : tout le monde ▾</button>
-  <select id="periode" aria-label="Période">
-    <option value="all">Toute l'année</option>
-    <option value="m0">Mois en cours</option>
-    <option value="m1">Mois dernier</option>
-    <option value="q0">Trimestre en cours</option>
-    <option value="q1">Trimestre dernier</option>
-  </select>
-  <button class="btn" data-go="import">Importer</button>
-  <button class="btn" data-go="reglages" title="Équipes, annuaire, corrections">Réglages</button>
-  <button class="btn" id="bCompte" title="Mon compte">Compte</button>
-  <button class="btn" id="theme" title="Clair / sombre">◐</button>
+  <div class="outils">
+    <button class="btn" id="bEquipe" aria-haspopup="true">Équipe : tout le monde ▾</button>
+    <select id="periode" aria-label="Période">
+      <option value="all">Toute l'année</option>
+      <option value="m0">Mois en cours</option>
+      <option value="m1">Mois dernier</option>
+      <option value="q0">Trimestre en cours</option>
+      <option value="q1">Trimestre dernier</option>
+    </select>
+    <button class="btn" data-go="import" title="Importer des fichiers">Importer</button>
+    <button class="btn" data-go="reglages" title="Équipes, annuaire, corrections">Réglages</button>
+    <button class="btn ico" id="bCompte" title="Mon compte" aria-label="Mon compte"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
+    <button class="btn ico" id="theme" title="Clair / sombre" aria-label="Clair / sombre"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
+  </div>
 </header>
 <div id="panelEquipe" class="panel hidden"></div>
 <div class="equipe-bar hidden" id="equipeBar"></div>
@@ -77,12 +78,12 @@
       <div class="val" id="nFree">0</div>
       <div class="note" id="nFreeNote"></div>
     </div>
-    <div class="tile">
+    <div class="tile tile-rang">
       <div class="lbl">Top réserveurs · AO en cours non traités</div>
       <ul class="rank" id="rkStock"></ul>
       <button class="more" data-rank="wait">Voir tout le classement →</button>
     </div>
-    <div class="tile">
+    <div class="tile tile-rang">
       <div class="lbl">Top réserveurs · global sur la période</div>
       <ul class="rank" id="rkGlobal"></ul>
       <button class="more" data-rank="total">Voir tout le classement →</button>
@@ -98,7 +99,7 @@
     <span class="count" id="listCount"></span>
     <button class="btn" data-csv="list">Exporter CSV</button>
   </div>
-  <div class="tablebox"><table id="tList"></table></div>
+  <div class="tablebox"><table id="tList" class="cartes"></table></div>
 </section>
 
 <!-- Non réservés -->
@@ -109,7 +110,7 @@
     <span class="count" id="freeCount"></span>
     <button class="btn" data-csv="free">Exporter CSV</button>
   </div>
-  <div class="tablebox"><table id="tFreeL"></table></div>
+  <div class="tablebox"><table id="tFreeL" class="cartes"></table></div>
 </section>
 
 <!-- Classement -->
@@ -119,7 +120,7 @@
     <h2>Classement des réserveurs</h2><span class="spacer"></span>
     <button class="btn" data-csv="rank">Exporter CSV</button>
   </div>
-  <div class="tablebox"><table id="tRank"></table></div>
+  <div class="tablebox"><table id="tRank" class="cartes"></table></div>
 </section>
 
 <!-- Fiche personne -->
@@ -138,7 +139,7 @@
     <span class="spacer"></span><span class="count" id="pCount"></span>
     <button class="btn" data-csv="person">Exporter CSV</button>
   </div>
-  <div class="tablebox"><table id="tPerson"></table></div>
+  <div class="tablebox"><table id="tPerson" class="cartes"></table></div>
   <p class="sub">Clique sur un AO pour voir les échanges et corriger l'attribution.</p>
 </section>
 
