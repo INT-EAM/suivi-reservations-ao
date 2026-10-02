@@ -103,7 +103,10 @@
     const el = [...doc.querySelectorAll('label,span,div,td,th,dt,b,strong')].find(e => e.children.length === 0 && libelle.test(e.textContent.trim()));
     if (!el) return '';
     for (const c of [el.nextElementSibling, el.parentElement?.nextElementSibling, el.parentElement?.parentElement?.nextElementSibling]) {
-      const v = (c?.textContent || '').replace(/\s+/g, ' ').trim();
+      // Champ en liste déroulante : seule l'option choisie compte, pas toute la liste.
+      const sel = c && (c.tagName === 'SELECT' ? c : c.querySelector?.('select'));
+      const opt = sel && (sel.querySelector('option[selected]') || sel.options?.[sel.selectedIndex]);
+      const v = (opt ? opt.textContent : (c?.textContent || '')).replace(/\s+/g, ' ').trim();
       if (v && !libelle.test(v)) return v;
     }
     return '';

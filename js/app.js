@@ -131,6 +131,9 @@ function renderHome() {
   const F = libres(), Fs = F.filter(a => a.jours > S.seuilF);
   $('#nFree').textContent = Fs.length;
   $('#nFreeNote').textContent = `personne ne s’est positionné · ${F.length} non réservés sortis depuis ${REGLES.nonReservesMaxJours} jours ou moins`;
+  const T = L.filter(a => a.s === 'T').length;
+  $('#nRep').innerHTML = `${T}<span class="sur"> / ${L.length}</span>`;
+  $('#nRepNote').textContent = L.length ? `${pct(T, L.length)} des AO réservés ont une réponse soumise` : 'aucun AO réservé';
   const rk = rankData(L); rankList($('#rkStock'), rk, 'wait'); rankList($('#rkGlobal'), rk, 'total');
 }
 
@@ -169,7 +172,8 @@ const C_RANK = [
   { k: 'bm', h: 'Réserveur', v: r => r.bm },
   { k: 'wait', h: 'En cours', num: 1, v: r => r.wait, f: r => nb(r, 'A', r.wait) },
   { k: 'total', h: 'Total', num: 1, v: r => r.total, f: r => nb(r, 'all', r.total) },
-  { k: 'traites', h: 'Réponses soumises', num: 1, v: r => r.traites, f: r => nb(r, 'T', r.traites) },
+  { k: 'traites', h: 'Répondus / réservés', num: 1, v: r => r.traites, f: r => `${nb(r, 'T', r.traites)}<span class="sur"> / ${r.total}</span>`, csv: r => `${r.traites} / ${r.total}` },
+  { k: 'taux', h: 'Taux', num: 1, v: r => (r.total ? r.traites / r.total : null), f: r => pct(r.traites, r.total), csv: r => pct(r.traites, r.total) },
   { k: 'retenus', h: 'Retenus', num: 1, v: r => r.retenus, f: r => nb(r, 'R', r.retenus) },
   { k: 'avg', h: 'Attente moy.', num: 1, v: r => r.avg, f: r => (r.avg === null ? '<span class="muted">—</span>' : r.avg + ' j'), m: 1 },
   { k: 'oldj', h: 'Plus ancien', num: 1, v: r => r.oldj, f: r => (r.oldj === null ? '<span class="muted">—</span>' : r.oldj + ' j') },
@@ -184,6 +188,7 @@ const C_FREE = [
 // Chiffre cliquable du classement : ouvre la liste des AO correspondants.
 const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO avec réponse soumise', R: 'AO retenus' };
 const nb = (r, f, n) => (n ? `<button class="nb" data-bm="${esc(r.bm)}" data-f="${f}" title="${FILTRES[f]} — ${esc(r.bm)}">${n}</button>` : '<span class="muted">0</span>');
+const pct = (n, d) => (d ? Math.round(100 * n / d) + ' %' : '—');
 const filtrerStatut = (L, f) => (f === 'all' ? L : f === 'R' ? L.filter(a => a.retenu) : L.filter(a => a.s === f));
 
 // ---------------------------------------------------------------- vues
@@ -210,14 +215,14 @@ function render(garderPanel = false) {
     const parBM = typeof S.liste === 'object';
     let L;
     if (parBM) {
-      L = filtrerStatut(reservations().filter(a => a.bm === S.liste.bm), S.liste.f);
-      $('#listTitle').textContent = `${S.liste.bm} · ${FILTRES[S.liste.f]}`;
+      L = filtrerStatut(reservations().filter(a => !S.liste.bm || a.bm === S.liste.bm), S.liste.f);
+      $('#listTitle').textContent = S.liste.bm ? `${S.liste.bm} · ${FILTRES[S.liste.f]}` : FILTRES[S.liste.f];
     } else {
       L = reservations().filter(a => a.s === 'A');
       if (S.liste === 'late') L = L.filter(a => a.jours !== null && a.jours > S.seuil);
       $('#listTitle').textContent = S.liste === 'late' ? `Non traités depuis plus de ${S.seuil} jours` : 'AO réservés non traités';
     }
-    $('#listCount').textContent = pluriel(table('#tList', 'list', C_AO(!parBM), L, a => ouvrirAO(a.ref)).length, 'AO', 'AO');
+    $('#listCount').textContent = pluriel(table('#tList', 'list', C_AO(!parBM || !S.liste.bm), L, a => ouvrirAO(a.ref)).length, 'AO', 'AO');
   }
   const back = $('#v-list .back');
   back.dataset.go = S.retour; back.textContent = S.retour === 'rank' ? '← Classement' : '← Accueil';
@@ -319,7 +324,7 @@ function renderImport() {
   if (!p) { el.innerHTML = ''; return; }
   if (p.erreur) { el.innerHTML = `<div class="banner err">${esc(p.erreur)}</div>`; return; }
   const indic = c => { const L = c.reservations, W = L.filter(a => a.s === 'A'); return {
-    'AO réservés': L.length, 'Non traités': W.length, [`En retard (> ${REGLES.seuilsRetard[0]} j)`]: W.filter(a => a.jours > REGLES.seuilsRetard[0]).length,
+    'AO réservés': L.length, 'Répondus / réservés': `${L.filter(a => a.s === 'T').length} / ${L.length}`, 'Non traités': W.length, [`En retard (> ${REGLES.seuilsRetard[0]} j)`]: W.filter(a => a.jours > REGLES.seuilsRetard[0]).length,
     'Non réservés en cours': c.libres.length, 'BM non reconnus': c.nonResolus.length }; };
   const av = indic(p.avant), ap = indic(p.apres);
   const m = p.stats.mails, w = p.stats.pwise;
@@ -342,7 +347,7 @@ function renderImport() {
     </div>
     <div class="card"><h3>Effet sur le tableau de bord</h3><div class="kv">
       <span class="h"></span><span class="h n">Avant</span><span class="h">Après</span>
-      ${Object.keys(av).map(k => `<span>${k}</span><span class="n">${av[k]}</span><span>${ap[k]}${ap[k] !== av[k] ? ` <span class="${ap[k] > av[k] ? 'delta-up' : 'delta-down'}">(${ap[k] > av[k] ? '+' : ''}${ap[k] - av[k]})</span>` : ''}</span>`).join('')}
+      ${Object.keys(av).map(k => `<span>${k}</span><span class="n">${av[k]}</span><span>${ap[k]}${typeof ap[k] === 'number' && ap[k] !== av[k] ? ` <span class="${ap[k] > av[k] ? 'delta-up' : 'delta-down'}">(${ap[k] > av[k] ? '+' : ''}${ap[k] - av[k]})</span>` : ''}</span>`).join('')}
     </div></div>
     <div class="row"><span class="spacer"></span><button class="btn" id="bAnnuler">Annuler</button><button class="btn primary" id="bValider">Valider l’import</button></div>`;
   $('#bAnnuler').onclick = () => { S.prep = null; render(); };
@@ -427,6 +432,7 @@ function brancher() {
   $('#seuil').onchange = e => { S.seuil = +e.target.value; render(); };
   $('#seuilF').onchange = e => { S.seuilF = +e.target.value; render(); };
   const pasSelect = e => !['SELECT', 'OPTION'].includes(e.target.tagName);
+  $('#tRep').onclick = () => { S.liste = { bm: null, f: 'T' }; S.sort.list = ['jours', -1]; aller('list'); };
   $('#tWait').onclick = () => { S.liste = 'wait'; S.sort.list = ['jours', -1]; aller('list'); };
   $('#tLate').onclick = e => { if (pasSelect(e)) { S.liste = 'late'; S.sort.list = ['jours', -1]; aller('list'); } };
   $('#tFree').onclick = e => { if (pasSelect(e)) { S.sort.free = ['jours', -1]; aller('free'); } };

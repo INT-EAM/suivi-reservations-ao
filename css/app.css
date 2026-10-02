@@ -115,3 +115,5 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .nb{font:inherit;font-variant-numeric:tabular-nums;background:none;border:0;padding:2px 6px;margin:-2px -6px;border-radius:6px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .nb:hover{background:var(--hover)}
 .tag-ok{background:rgba(12,138,12,.12);color:var(--good)}
+.sur{color:var(--muted);font-weight:400;font-size:.62em}
+td .sur{font-size:.92em}
