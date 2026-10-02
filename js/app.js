@@ -313,7 +313,7 @@ function renderImport() {
         <span>AO dans l’extraction</span><span class="n">${w.ao}</span><span></span>
         <span>En cours</span><span class="n">${w.enCours}</span><span></span>
         <span>Sortis de l’extraction</span><span class="n">${w.disparus}</span><span class="h">passent en clos</span></div>
-        <div class="sub" style="margin-top:8px">Champs reconnus : ${Object.entries(p.cles).map(([k, v]) => `${k} → ${v ? esc(v) : '<b>introuvable</b>'}`).join(' · ')}</div>` : '<span class="sub">Pas de fichier : les statuts restent ceux du dernier import.</span>'}</div>
+        <div class="sub" style="margin-top:8px">Champs reconnus : ${Object.entries(p.cles).filter(([k, v]) => v || k !== 'soumis').map(([k, v]) => `${k} → ${v ? esc(v) : '<b>introuvable</b>'}`).join(' · ')}</div>` : '<span class="sub">Pas de fichier : les statuts restent ceux du dernier import.</span>'}</div>
     </div>
     <div class="card"><h3>Effet sur le tableau de bord</h3><div class="kv">
       <span class="h"></span><span class="h n">Avant</span><span class="h">Après</span>

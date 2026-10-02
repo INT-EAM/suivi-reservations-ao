@@ -44,7 +44,11 @@ Sans clé Supabase, l'appli tourne en **mode local** : les données restent dans
 ## Exporter les fichiers
 
 - **Mails** : Outlook classique > *Fichier > Ouvrir et exporter > Importer/Exporter > Exporter vers un fichier > Valeurs séparées par des virgules*, choisir le dossier qui reçoit `bnp_ariba@intm.fr`. Garder les colonnes par défaut (Objet, Corps, De…).
-- **PWise** : export JSON de la liste des appels d'offres.
+- **PWise** : le fichier `pwise_sync_AAAA-MM-JJ.json` produit par la synchro PWise (champs `rfc`, `intitule`, `statutPwise`, `dateDebut`…). Un autre export JSON est accepté : les champs sont reconnus par leur nom.
+
+Les dates viennent des mails eux-mêmes, l'export CSV d'Outlook n'ayant pas de colonne date :
+la date de sortie d'un AO est l'heure de réception lue dans les liens Safelinks de sa notification ;
+la date d'une réponse est celle du mail cité (« Envoyé : … »), à défaut l'heure de réception lue dans un lien de la réponse.
 
 ## Développement
 

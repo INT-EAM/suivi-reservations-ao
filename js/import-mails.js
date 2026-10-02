@@ -71,16 +71,43 @@ export function dateCitee(corps) {
   return null;
 }
 
-// ---------------------------------------------------------------- texte
-// Partie écrite par l'auteur : tout ce qui précède le premier message cité.
-export function reponsePropre(corps) {
-  const t = (corps || '').replace(/\r/g, '');
-  const coupe = t.search(/^\s*(de|from)\s*:\s.+$|^-{3,}\s*(message d'origine|original message)|^_{10,}|^\s*le .{5,80} a [ée]crit\s*:|^\s*on .{5,80} wrote:/im);
-  return (coupe >= 0 ? t.slice(0, coupe) : t).replace(/\s+/g, ' ').trim();
+/**
+ * Heure de réception lue dans un lien Safelinks Outlook (« …%7C0%7C0%7C639264619346627530%7C… »,
+ * horodatage .NET en dixièmes de microseconde depuis l'an 1), rendue en heure de Paris.
+ * C'est la seule date fiable d'une notification PWise, l'export CSV n'ayant pas de colonne date.
+ */
+export function dateLien(corps) {
+  const m = String(corps || '').match(/%7C0%7C0%7C(6\d{17})%7C/);
+  if (!m) return null;
+  const ms = Number((BigInt(m[1]) - 621355968000000000n) / 10000n);
+  const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
-const RE_REF = /\b(RFC\d{8}|BPM\d{6})\b/gi;
-const refsDe = s => [...new Set((String(s || '').match(RE_REF) || []).map(r => r.toUpperCase()))];
+// ---------------------------------------------------------------- texte
+// Partie écrite par l'auteur : tout ce qui précède le premier message cité.
+// Partie brute écrite par l'auteur, avant le premier message cité.
+export function partiePropre(corps) {
+  const t = (corps || '').replace(/\r/g, '');
+  const coupe = t.search(/^\s*(de|from)\s*:\s.+$|^-{3,}\s*(message d'origine|original message)|^_{10,}|^\s*le .{5,80} a [ée]crit\s*:|^\s*on .{5,80} wrote:|^\s*d[ée]but du message transf[ée]r[ée]/im);
+  return coupe >= 0 ? t.slice(0, coupe) : t;
+}
+export function reponsePropre(corps) {
+  return partiePropre(corps)
+    .replace(/classification intm\s*:.*?confidentiel\s*\[.?\]/gis, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// Références d'AO : « RFC00082603 », « BPM043741 », « N° RFx : 43741 » (OneProcTool),
+// lien PWise « request_for_candidates_manage_extranet/82603 ».
+export function refsDe(s) {
+  const t = String(s || ''), out = [];
+  for (const m of t.matchAll(/\b(RFC\d{8}|BPM\d{6})\b/gi)) out.push(m[1].toUpperCase());
+  for (const m of t.matchAll(/N°\s*RFx\s*:\s*(\d{4,6})\b/gi)) out.push('BPM' + m[1].padStart(6, '0'));
+  for (const m of t.matchAll(/request_for_candidates_manage_extranet(?:\/|%2F)(\d{4,8})\b/gi)) out.push('RFC' + m[1].padStart(8, '0'));
+  return [...new Set(out)];
+}
 const estSysteme = (nom, adr) => /pwise|oneproc|no-?reply|ariba|bnp ?paribas|mailer|postmaster/i.test(`${nom} ${adr}`);
 const estINTM = (adr, type) => /@intm\.(fr|com)\b/i.test(adr) || /^EX$/i.test(type || '') || /\/o=/i.test(adr || '');
 
@@ -92,7 +119,10 @@ export async function empreinte(...parts) {
 }
 
 /**
- * @returns {Promise<{messages:Array, stats:object, refsTitres:Map}>}
+ * Lit l'export et en tire les réponses des BM aux AO.
+ * 1er passage : notifications PWise / OneProcTool (intitulés, date de sortie de chaque AO).
+ * 2e passage : réponses des collaborateurs INTM.
+ * @returns {Promise<{messages:Array, stats:object, titres:Map, publications:Map}>}
  */
 export async function lireMails(texteCSV) {
   const { entetes, lignes } = lireCSV(texteCSV);
@@ -100,38 +130,85 @@ export async function lireMails(texteCSV) {
   if (c.objet < 0 || c.corps < 0 || c.nom < 0) {
     throw new Error(`Colonnes introuvables dans le CSV (trouvé : ${entetes.slice(0, 8).join(', ')}…). Attendu : Objet, Corps, De: (nom).`);
   }
-  const stats = { mails: lignes.length, intm: 0, sansRef: 0, anciens: 0, messages: 0, sansDate: 0 };
-  const messages = [], titres = new Map(), vus = new Set();
+  const stats = { mails: lignes.length, intm: 0, sansRef: 0, anciens: 0, messages: 0, sansDate: 0, parIntitule: 0 };
+  const messages = [], titres = new Map(), publications = new Map(), vus = new Set();
+  const champ = (l, k) => (c[k] >= 0 ? l[c[k]] || '' : '');
+
+  // Un même BM peut apparaître sous plusieurs graphies (« Alice MARTIN », « Alice Martin ») : on garde la plus fréquente.
+  const graphies = new Map();
   for (const l of lignes) {
-    const objet = l[c.objet] || '', corps = l[c.corps] || '', nom = (l[c.nom] || '').trim();
-    const adr = c.adresse >= 0 ? l[c.adresse] || '' : '', type = c.typeAdr >= 0 ? l[c.typeAdr] : '';
-    // Intitulés des AO lus dans les notifications, utiles pour les AO OneProcTool absents de PWise.
-    if (estSysteme(nom, adr)) {
-      const zone = `${objet}\n${corps.slice(0, 3000)}`;
-      for (const r of refsDe(zone)) {
-        if (titres.has(r)) continue;
-        const m = zone.match(new RegExp(`${r}\\s*[-:–]\\s*([^\\r\\n]{3,150})`, 'i'));
-        if (m) titres.set(r, m[1].trim());
-      }
-      continue;
+    const n = champ(l, 'nom').trim(), k = sansAccent(n);
+    if (!n) continue;
+    const g = graphies.get(k) || new Map(); g.set(n, (g.get(n) || 0) + 1); graphies.set(k, g);
+  }
+  const canon = n => { const g = graphies.get(sansAccent(n)); return g ? [...g].sort((a, b) => b[1] - a[1])[0][0] : n; };
+
+  // ---- 1er passage : notifications
+  const systeme = l => estSysteme(champ(l, 'nom'), champ(l, 'adresse'));
+  for (const l of lignes) {
+    if (!systeme(l)) continue;
+    const objet = champ(l, 'objet'), corps = champ(l, 'corps');
+    const zone = `${objet}\n${corps.slice(0, 4000)}`;
+    const refs = refsDe(zone);
+    if (/nouvel appel d'offres|nouvelle consultation|dossier de consultation/i.test(zone)) {
+      const quand = dateLien(corps);
+      for (const r of refs) if (quand && (!publications.has(r) || quand < publications.get(r))) publications.set(r, quand);
     }
-    if (!nom || !(estINTM(adr, type) || c.adresse < 0)) continue;
+    for (const r of refs) {
+      if (titres.has(r)) continue;
+      const num = r.slice(3).replace(/^0+/, '');
+      const m = zone.match(new RegExp(`${r}\\W{1,12}([^\\r\\n]{3,150})`, 'i'))
+             || (r.startsWith('BPM') && zone.match(/Nom RFx\s*:\s*([^\r\n]{3,150})/i) && zone.includes(num) ? zone.match(/Nom RFx\s*:\s*([^\r\n]{3,150})/i) : null);
+      if (m) titres.set(r, m[1].replace(/^['"\s-]+/, '').trim());
+    }
+  }
+  // Intitulé -> référence (quand l'intitulé est unique), pour les réponses qui ne citent pas de numéro.
+  const cle = s => sansAccent(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+  const parTitre = new Map();
+  for (const [r, t] of titres) { const k = cle(t); parTitre.set(k, parTitre.has(k) && parTitre.get(k) !== r ? null : r); }
+  const connus = new Set([...titres.keys(), ...publications.keys()]);
+  // Numéro seul dans l'objet (« 43683 je récupère ») : on garde la plateforme où il existe.
+  const numeroSeul = objet => {
+    const m = objet.match(/(?:^|\s)(\d{4,6})(?=\s|$)/);
+    if (!m) return [];
+    const bpm = 'BPM' + m[1].padStart(6, '0'), rfc = 'RFC' + m[1].padStart(8, '0');
+    return connus.has(bpm) && !connus.has(rfc) ? [bpm] : connus.has(rfc) && !connus.has(bpm) ? [rfc] : [];
+  };
+  const parIntitule = objet => {
+    const t = cle(objet.replace(/^((re|tr|fw|fwd|réf)\s*:\s*)+/i, '').replace(/\[[^\]]*\]/g, '').replace(/^.*dossier de consultation\s*/i, ''));
+    const r = t.length > 8 ? parTitre.get(t) : null;
+    return r ? [r] : [];
+  };
+
+  // ---- 2e passage : réponses INTM
+  for (const l of lignes) {
+    const nom = champ(l, 'nom').trim();
+    if (!nom || systeme(l)) continue;
+    if (!(estINTM(champ(l, 'adresse'), champ(l, 'typeAdr')) || c.adresse < 0)) continue;
     stats.intm++;
+    const objet = champ(l, 'objet'), corps = champ(l, 'corps');
     const reponse = reponsePropre(corps);
-    const refs = [...new Set([...refsDe(objet), ...refsDe(reponse)])];
-    if (!refs.length) refs.push(...refsDe(corps).slice(0, 1));
+    // Les références écrites dans la réponse priment sur celle de l'objet (« je traite RFC… et RFC… »).
+    let refs = refsDe(reponse);
+    if (!refs.length) refs = refsDe(objet);
+    if (!refs.length) refs = refsDe(corps).slice(0, 1);
+    if (!refs.length) refs = numeroSeul(objet);
+    if (!refs.length) { refs = parIntitule(objet); if (refs.length) stats.parIntitule++; }
     if (!refs.length) { stats.sansRef++; continue; }
-    const date = dateCitee(corps.slice(reponse.length ? corps.indexOf(reponse.slice(0, 20)) + reponse.length : 0)) || dateCitee(corps);
+    // Date : celle du mail cité ; sinon l'heure de réception lue dans un lien de la réponse elle-même (signature, iPhone…).
+    const date = dateCitee(corps) || dateLien(partiePropre(corps));
+    const auteur = canon(nom);
     for (const ref of refs) {
       if (date && +date.slice(0, 4) < REGLES.annee) { stats.anciens++; continue; }
       if (!date && /^BPM/.test(ref) && +ref.slice(3) < REGLES.bpmPremierNumeroAnnee) { stats.anciens++; continue; }
-      const id = await empreinte(ref, nom, date || '', reponse.slice(0, 300));
+      const id = await empreinte(ref, auteur, date || '', reponse.slice(0, 300));
       if (vus.has(id)) continue;
       vus.add(id);
       if (!date) stats.sansDate++;
-      messages.push({ id, ref, date, auteur: nom, texte: reponse.slice(0, 1000) });
+      messages.push({ id, ref, date, auteur, texte: reponse.slice(0, 1000) });
     }
   }
   stats.messages = messages.length;
-  return { messages, stats, titres };
+  stats.publications = publications.size;
+  return { messages, stats, titres, publications };
 }

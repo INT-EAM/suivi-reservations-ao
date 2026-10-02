@@ -84,3 +84,33 @@ test('import complet : aperçu avant/après, rien en double', async () => {
   const r2 = await preparerImport({ mails: f('mails.csv', CSV) }, { ...vide, messages: r.messagesNouveaux });
   assert.equal(r2.messagesNouveaux.length, 0, 'ré-import sans doublon');
 });
+
+import { dateLien, refsDe } from '../js/import-mails.js';
+
+test('date de réception lue dans un lien Safelinks (heure de Paris)', () => {
+  const corps = 'Je traite <https://eur02.safelinks.protection.outlook.com/?url=x&data=05%7C02%7Ca%40intm.fr%7Cabc%7Cdef%7C0%7C0%7C639264619346627530%7CUnknown%7C>';
+  assert.equal(dateLien(corps), '2026-10-01T16:32');
+  assert.equal(dateLien('pas de lien'), null);
+});
+
+test('références : RFC, BPM, N° RFx OneProcTool, lien PWise', () => {
+  assert.deepEqual(refsDe('RE: RFC00012345 je traite'), ['RFC00012345']);
+  assert.deepEqual(refsDe('*\tN° RFx : 43741'), ['BPM043741']);
+  assert.deepEqual(refsDe('request_for_candidates_manage_extranet/19242 <https://x>'), ['RFC00019242']);
+  assert.deepEqual(refsDe('Nous traitons RFC00040436 et RFC00040476.'), ['RFC00040436', 'RFC00040476']);
+});
+
+test('graphies d’un même BM fusionnées, OneProcTool par numéro seul', async () => {
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const L = (o, c, n, a) => [o, c, n, a, 'SMTP'].map(q).join(',');
+  const csv = ['Objet,Corps,"De: (nom)","De: (adresse)","De: (type)"',
+    L('[POUR ACTION] Dossier de consultation Data', 'Bonjour,\n*\tNom RFx : Data\n*\tN° RFx : 43001\n', 'BNP PARIBAS OneProcTool', 'x@oneproctool-info.bnpparibas.com'),
+    L('43001 je récupère', '', 'Alice Martin', 'alice.martin@intm.fr'),
+    L('RE: BPM043001', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+    L('RE: BPM043001', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+  ].join('\r\n');
+  const { messages, titres } = await lireMails(csv);
+  assert.equal(titres.get('BPM043001'), 'Data');
+  assert.deepEqual([...new Set(messages.map(m => m.auteur))], ['Alice MARTIN']);
+  assert.ok(messages.every(m => m.ref === 'BPM043001'));
+});

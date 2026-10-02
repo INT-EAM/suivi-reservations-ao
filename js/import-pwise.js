@@ -22,8 +22,8 @@ function aplatir(o, pre = '', out = {}) {
 const CHAMPS = {
   ref: [/^(rfc|ref|reference|référence|numero|n°|id|code)$/i, /(rfc|r[ée]f[ée]rence)/i],
   titre: [/^(intitul[ée]|titre|title|libell[ée]|name|nom|objet)$/i, /(intitul|titre|libell)/i],
-  organisation: [/(organisation|direction|entit[ée]|d[ée]partement|perim|p[ée]rim[eè]tre|client)/i],
-  statut: [/^(statut|status|[ée]tat)$/i, /(statut|status)/i],
+  organisation: [/^org$/i, /(organisation|direction|entit[ée]|d[ée]partement|perim|p[ée]rim[eè]tre|client)/i, /^dept$/i],
+  statut: [/^statut_?pwise$/i, /^(statut|status|[ée]tat)$/i, /(statut|status)/i],
   publication: [/(publi|cr[ée]ation|creat|ouverture|emission|[ée]mis|sortie)/i],
   debut: [/(d[ée]but|start|date de d)/i],
   soumis: [/(soumis|submitted|r[ée]ponse.*(fournisseur|intm))/i],

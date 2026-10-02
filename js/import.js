@@ -37,11 +37,22 @@ export async function preparerImport(fichiers, existant) {
     res.stats.mails = m.stats;
     res.messagesNouveaux = m.messages.filter(x => !idsConnus.has(x.id));
     res.stats.mails.nouveaux = res.messagesNouveaux.length;
+    // Date de sortie lue dans les notifications : plus précise que la date d'ouverture du JSON (date de synchro).
+    for (const a of res.aoAEnregistrer) {
+      const p = m.publications.get(a.ref);
+      if (p && (!a.date_publication || a.date_publication.length <= 10 || p < a.date_publication)) a.date_publication = p;
+      if (!a.titre && m.titres.get(a.ref)) a.titre = m.titres.get(a.ref);
+    }
+    for (const a of existant.ao) {
+      const p = m.publications.get(a.ref);
+      if (p && !res.aoAEnregistrer.some(x => x.ref === a.ref) && (!a.date_publication || String(a.date_publication).length <= 10)) res.aoAEnregistrer.push({ ...a, date_publication: p });
+    }
     const prevus = new Set(res.aoAEnregistrer.map(a => a.ref));
     for (const x of res.messagesNouveaux) {
       if (catalogue.has(x.ref) || prevus.has(x.ref)) continue;
       prevus.add(x.ref);
-      res.aoAEnregistrer.push({ ref: x.ref, plateforme: x.ref.startsWith('BPM') ? 'OneProcTool' : 'PWise', titre: m.titres.get(x.ref) || null, vu_dernier_export: false, en_cours: false });
+      res.aoAEnregistrer.push({ ref: x.ref, plateforme: x.ref.startsWith('BPM') ? 'OneProcTool' : 'PWise', titre: m.titres.get(x.ref) || null,
+        date_publication: m.publications.get(x.ref) || null, vu_dernier_export: false, en_cours: false });
     }
     if (m.stats.sansDate > m.stats.messages / 2) res.avertissements.push(`${m.stats.sansDate} réponses sans date citée : vérifie que l'export contient bien le corps des mails.`);
     res.journal.fichier_mails = fichiers.mails.name;
