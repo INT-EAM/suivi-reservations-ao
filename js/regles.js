@@ -1,5 +1,8 @@
 // Règles de gestion — modifier ici, tout le reste s'en déduit.
 
+// Version affichée en pied de page : permet de vérifier qu'on voit bien la dernière mise en ligne.
+export const VERSION = '2026-10-02 12:45 · réponses PWise';
+
 export const REGLES = {
   // Un AO non traité réservé depuis plus de N jours est compté clos.
   closAutoJours: 30,

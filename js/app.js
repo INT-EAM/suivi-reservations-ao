@@ -1,4 +1,4 @@
-import { REGLES, STATUTS, TYPES } from './regles.js';
+import { REGLES, STATUTS, TYPES, VERSION } from './regles.js';
 import { calculer, filtrerBM } from './calcul.js';
 import { ouvrirStore } from './store.js';
 import { preparerImport, validerImport } from './import.js';
@@ -261,7 +261,7 @@ function render(garderPanel = false) {
   if (S.vue === 'reglages') renderReglages();
   $('#foot').innerHTML = `Règles : périmètre PWise et OneProcTool. L’AO revient au dernier BM qui l’a revendiqué (« c’est chez moi ») ; sans revendication, au premier positionné ; un BM qui cède la main est retiré ; une correction manuelle prime.
     « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. « Réponse soumise » = au moins un profil proposé sur la page de détail PWise, statut « RFC soumis / retenu », ou mail de résultat reçu (refus, acceptation de l’offre, résultats RFC). OneProcTool n’a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
-    Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).`;
+    Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).<br>Version ${VERSION}`;
 }
 
 function renderAlertes() {
