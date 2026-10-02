@@ -20,7 +20,11 @@ export async function preparerImport(fichiers, existant) {
     res.stats.pwise = p.stats;
     res.cles = p.cles;
     const vus = new Set(p.ao.map(a => a.ref));
-    for (const a of p.ao) res.aoAEnregistrer.push({ ...(catalogue.get(a.ref) || {}), ...a, maj: new Date().toISOString() });
+    for (const a of p.ao) {
+      const avant = catalogue.get(a.ref) || {};
+      // Une réponse déjà prouvée (mail de résultat) n'est jamais effacée par un export PWise.
+      res.aoAEnregistrer.push({ ...avant, ...a, reponse_soumise: a.reponse_soumise || avant.reponse_soumise || null, maj: new Date().toISOString() });
+    }
     for (const a of existant.ao) {
       if (a.plateforme === 'PWise' && a.vu_dernier_export && !vus.has(a.ref)) res.aoAEnregistrer.push({ ...a, vu_dernier_export: false, en_cours: false });
     }
@@ -46,6 +50,17 @@ export async function preparerImport(fichiers, existant) {
     for (const a of existant.ao) {
       const p = m.publications.get(a.ref);
       if (p && !res.aoAEnregistrer.some(x => x.ref === a.ref) && (!a.date_publication || String(a.date_publication).length <= 10)) res.aoAEnregistrer.push({ ...a, date_publication: p });
+    }
+    // Mails « refus / acceptation de l'offre », « résultats RFC » : INTM avait déposé une réponse.
+    const prevusOffre = new Map(res.aoAEnregistrer.map(a => [a.ref, a]));
+    for (const [ref] of m.offres) {
+      const a = prevusOffre.get(ref);
+      if (a) { a.reponse_soumise = true; continue; }
+      const avant = catalogue.get(ref);
+      if (avant?.reponse_soumise) continue;
+      const nouv = { ...(avant || { ref, plateforme: ref.startsWith('BPM') ? 'OneProcTool' : 'PWise', titre: m.titres.get(ref) || null,
+        date_publication: m.publications.get(ref) || null, vu_dernier_export: false, en_cours: false }), reponse_soumise: true };
+      res.aoAEnregistrer.push(nouv); prevusOffre.set(ref, nouv);
     }
     const prevus = new Set(res.aoAEnregistrer.map(a => a.ref));
     for (const x of res.messagesNouveaux) {

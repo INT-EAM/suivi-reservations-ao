@@ -114,3 +114,22 @@ test('graphies d’un même BM fusionnées, OneProcTool par numéro seul', async
   assert.deepEqual([...new Set(messages.map(m => m.auteur))], ['Alice MARTIN']);
   assert.ok(messages.every(m => m.ref === 'BPM043001'));
 });
+
+test('mail de résultat : réponse soumise prouvée, jamais effacée par PWise', async () => {
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const L = (o, c, n, a) => [o, c, n, a, 'SMTP'].map(q).join(',');
+  const csv = ['Objet,Corps,"De: (nom)","De: (adresse)","De: (type)"',
+    L("[POUR INFORMATION] Refus de l'offre sur la consultation : BPM043001 - Data", 'votre offre a été rejetée\n*\tBPM Name: BPM043001 - Data', 'BNP PARIBAS OneProcTool', 'x@oneproctool-info.bnpparibas.com'),
+    L('RE: BPM043001', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+    L('RE: RFC00012345', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+    L('[POUR INFORMATION] PWise: Resultats RFC disponibles', 'votre offre a été retenue\n*\tAppels d\'offres : RFC00012345 - Dev', 'BNP Paribas PWise', 'no-reply@info.pwise.bnpparibas.com'),
+  ].join('\r\n');
+  const pw = JSON.stringify({ aos: [{ rfc: 'RFC00012345', intitule: 'Dev', statutPwise: 'RFC non retenu' }] });
+  const vide = { ao: [], messages: [], corrections: [], bm: [] };
+  const r = await preparerImport({ mails: { name: 'm.csv', texte: csv }, pwise: { name: 'p.json', texte: pw } }, vide);
+  const s = ref => r.apres.reservations.find(x => x.ref === ref).s;
+  assert.equal(s('BPM043001'), 'T', 'OneProcTool refusé = réponse déposée');
+  assert.equal(s('RFC00012345'), 'T', 'résultat PWise prime sur « non retenu »');
+  const ensuite = await preparerImport({ pwise: { name: 'p.json', texte: pw } }, { ...vide, ao: r.aoAEnregistrer, messages: r.messagesNouveaux });
+  assert.equal(ensuite.aoAEnregistrer.find(a => a.ref === 'RFC00012345').reponse_soumise, true);
+});

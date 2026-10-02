@@ -19,7 +19,7 @@ const mem = {
 const S = {
   store: null, user: null,
   donnees: { ao: [], messages: [], corrections: [], bm: [], equipes: [], imports: [] }, calc: null,
-  p: 'all', seuil: REGLES.seuilsRetard[0], seuilF: REGLES.seuilsRetard[0], only: true,
+  p: 'all', seuil: REGLES.seuilsRetard[0], seuilF: REGLES.seuilsRetard[0], pf: 'A', retour: 'home',
   sel: new Set(mem.get('selection', [])), equipeNom: mem.get('equipe', null),
   vue: 'home', liste: 'wait', person: '', tab: 'equipes', editEquipe: null,
   sort: { list: ['jours', -1], rank: ['wait', -1], person: ['jours', -1], free: ['jours', -1] },
@@ -167,9 +167,9 @@ const C_AO = avecBM => [
 ];
 const C_RANK = [
   { k: 'bm', h: 'Réserveur', v: r => r.bm },
-  { k: 'wait', h: 'En cours', num: 1, v: r => r.wait },
-  { k: 'total', h: 'Total', num: 1, v: r => r.total },
-  { k: 'traites', h: 'Réponses soumises', num: 1, v: r => r.traites, m: 1 },
+  { k: 'wait', h: 'En cours', num: 1, v: r => r.wait, f: r => nb(r, 'A', r.wait) },
+  { k: 'total', h: 'Total', num: 1, v: r => r.total, f: r => nb(r, 'all', r.total) },
+  { k: 'traites', h: 'Réponses soumises', num: 1, v: r => r.traites, f: r => nb(r, 'T', r.traites) },
   { k: 'avg', h: 'Attente moy.', num: 1, v: r => r.avg, f: r => (r.avg === null ? '<span class="muted">—</span>' : r.avg + ' j'), m: 1 },
   { k: 'oldj', h: 'Plus ancien', num: 1, v: r => r.oldj, f: r => (r.oldj === null ? '<span class="muted">—</span>' : r.oldj + ' j') },
 ];
@@ -180,9 +180,14 @@ const C_FREE = [
   { k: 'debut', h: 'Début mission', v: a => a.debut, f: a => (a.debut ? fd(a.debut) : '—'), m: 1, csv: a => (a.debut ? fd(a.debut) : '') },
 ];
 
+// Chiffre cliquable du classement : ouvre la liste des AO correspondants.
+const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO avec réponse soumise' };
+const nb = (r, f, n) => (n ? `<button class="nb" data-bm="${esc(r.bm)}" data-f="${f}" title="${FILTRES[f]} — ${esc(r.bm)}">${n}</button>` : '<span class="muted">0</span>');
+const filtrerStatut = (L, f) => (f === 'all' ? L : L.filter(a => a.s === f));
+
 // ---------------------------------------------------------------- vues
-function ouvrirPersonne(p) { S.person = p; aller('person'); }
-function aller(v) { S.vue = v; $('#panelEquipe').classList.add('hidden'); render(); scrollTo(0, 0); }
+function ouvrirPersonne(p) { S.person = p; S.pf = 'A'; aller('person'); }
+function aller(v, retour = 'home') { S.vue = v; S.retour = retour; $('#panelEquipe').classList.add('hidden'); render(); scrollTo(0, 0); }
 
 function render(garderPanel = false) {
   if (!S.calc) return;
@@ -201,16 +206,31 @@ function render(garderPanel = false) {
   renderHome();
 
   if (S.vue === 'list') {
-    let L = reservations().filter(a => a.s === 'A');
-    if (S.liste === 'late') L = L.filter(a => a.jours !== null && a.jours > S.seuil);
-    $('#listTitle').textContent = S.liste === 'late' ? `Non traités depuis plus de ${S.seuil} jours` : 'AO réservés non traités';
-    $('#listCount').textContent = pluriel(table('#tList', 'list', C_AO(true), L, a => ouvrirAO(a.ref)).length, 'AO', 'AO');
+    const parBM = typeof S.liste === 'object';
+    let L;
+    if (parBM) {
+      L = filtrerStatut(reservations().filter(a => a.bm === S.liste.bm), S.liste.f);
+      $('#listTitle').textContent = `${S.liste.bm} · ${FILTRES[S.liste.f]}`;
+    } else {
+      L = reservations().filter(a => a.s === 'A');
+      if (S.liste === 'late') L = L.filter(a => a.jours !== null && a.jours > S.seuil);
+      $('#listTitle').textContent = S.liste === 'late' ? `Non traités depuis plus de ${S.seuil} jours` : 'AO réservés non traités';
+    }
+    $('#listCount').textContent = pluriel(table('#tList', 'list', C_AO(!parBM), L, a => ouvrirAO(a.ref)).length, 'AO', 'AO');
   }
+  const back = $('#v-list .back');
+  back.dataset.go = S.retour; back.textContent = S.retour === 'rank' ? '← Classement' : '← Accueil';
   if (S.vue === 'free') {
     $('#freeTitle').textContent = `AO en cours non réservés depuis plus de ${S.seuilF} jours`;
     $('#freeCount').textContent = pluriel(table('#tFreeL', 'free', C_FREE, libres().filter(a => a.jours > S.seuilF), null).length, 'AO', 'AO');
   }
-  if (S.vue === 'rank') table('#tRank', 'rank', C_RANK, rankData(reservations()), r => ouvrirPersonne(r.bm));
+  if (S.vue === 'rank') {
+    table('#tRank', 'rank', C_RANK, rankData(reservations()), r => ouvrirPersonne(r.bm));
+    $$('#tRank .nb').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      S.liste = { bm: b.dataset.bm, f: b.dataset.f }; S.sort.list = ['jours', -1]; aller('list', 'rank');
+    });
+  }
   if (S.vue === 'person') {
     const all = S.calc.reservations.filter(a => a.bm === S.person && dansPeriode(a.date)), W = all.filter(a => a.s === 'A'), d = W.filter(a => a.jours !== null);
     $('#pName').textContent = S.person;
@@ -218,14 +238,17 @@ function render(garderPanel = false) {
     $('#pAvg').textContent = d.length ? Math.round(d.reduce((s, a) => s + a.jours, 0) / d.length) + ' j' : '—';
     const o = d.reduce((m, a) => (!m || a.jours > m.jours ? a : m), null);
     $('#pOld').textContent = o ? o.jours + ' j' : '—'; $('#pOldRef').textContent = o ? o.ref : '';
-    $('#cOnlyWait').setAttribute('aria-pressed', S.only);
-    const n = table('#tPerson', 'person', C_AO(false), S.only ? W : all, a => ouvrirAO(a.ref)).length;
-    $('#pCount').textContent = `${pluriel(n, 'AO', 'AO')}${S.only ? '' : ` · ${all.filter(a => a.s === 'T').length} avec réponse soumise`}`;
+    $$('#pFiltres [data-pf]').forEach(b => {
+      const f = b.dataset.pf; b.setAttribute('aria-pressed', S.pf === f);
+      b.textContent = `${{ A: 'Non traités', T: 'Réponses soumises', all: 'Tous' }[f]} · ${filtrerStatut(all, f).length}`;
+    });
+    const n = table('#tPerson', 'person', C_AO(false), filtrerStatut(all, S.pf), a => ouvrirAO(a.ref)).length;
+    $('#pCount').textContent = pluriel(n, 'AO', 'AO');
   }
   if (S.vue === 'import') renderImport();
   if (S.vue === 'reglages') renderReglages();
   $('#foot').innerHTML = `Règles : périmètre PWise et OneProcTool. L’AO revient au dernier BM qui l’a revendiqué (« c’est chez moi ») ; sans revendication, au premier positionné ; un BM qui cède la main est retiré ; une correction manuelle prime.
-    « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. OneProcTool n’a pas de statut de réponse : ses AO comptent dans les réservations, pas dans les non traités.
+    « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. « Réponse soumise » = statut PWise « RFC soumis / retenu », ou mail de résultat reçu (refus, acceptation de l’offre, résultats RFC). OneProcTool n’a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
     Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).`;
 }
 
@@ -406,7 +429,7 @@ function brancher() {
   $('#tLate').onclick = e => { if (pasSelect(e)) { S.liste = 'late'; S.sort.list = ['jours', -1]; aller('list'); } };
   $('#tFree').onclick = e => { if (pasSelect(e)) { S.sort.free = ['jours', -1]; aller('free'); } };
   $('#periode').onchange = e => { S.p = e.target.value; render(); };
-  $('#cOnlyWait').onclick = () => { S.only = !S.only; render(); };
+  $$('#pFiltres [data-pf]').forEach(b => b.onclick = () => { S.pf = b.dataset.pf; render(); });
   $$('[data-go]').forEach(b => b.onclick = () => aller(b.dataset.go));
   $$('[data-rank]').forEach(b => b.onclick = () => { S.sort.rank = [b.dataset.rank, -1]; aller('rank'); });
   $$('#tabsReglages [data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; S.editEquipe = null; render(); });

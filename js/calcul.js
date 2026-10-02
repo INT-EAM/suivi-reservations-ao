@@ -7,6 +7,8 @@ export const EN_COURS = 'Réponse fournisseur en cours';
 
 // Statut d'une réservation vu depuis PWise. OneProcTool : pas de statut de réponse disponible.
 export function statutReservation(ao, plateforme) {
+  // Réponse prouvée : statut PWise « soumis / retenu » ou mail de résultat (refus, acceptation) reçu.
+  if (ao?.reponse_soumise === true) return 'T';
   if (plateforme === 'OneProcTool') return 'U';
   if (!ao || !ao.vu_dernier_export) return 'C';             // absent du dernier export : clos
   const s = (ao.statut_pwise || '').toLowerCase();

@@ -131,7 +131,7 @@ export async function lireMails(texteCSV) {
     throw new Error(`Colonnes introuvables dans le CSV (trouvé : ${entetes.slice(0, 8).join(', ')}…). Attendu : Objet, Corps, De: (nom).`);
   }
   const stats = { mails: lignes.length, intm: 0, sansRef: 0, anciens: 0, messages: 0, sansDate: 0, parIntitule: 0 };
-  const messages = [], titres = new Map(), publications = new Map(), vus = new Set();
+  const messages = [], titres = new Map(), publications = new Map(), offres = new Map(), vus = new Set();
   const champ = (l, k) => (c[k] >= 0 ? l[c[k]] || '' : '');
 
   // Un même BM peut apparaître sous plusieurs graphies (« Alice MARTIN », « Alice Martin ») : on garde la plus fréquente.
@@ -154,6 +154,10 @@ export async function lireMails(texteCSV) {
       const quand = dateLien(corps);
       for (const r of refs) if (quand && (!publications.has(r) || quand < publications.get(r))) publications.set(r, quand);
     }
+    // Résultat d'une offre INTM : la preuve qu'une réponse a été déposée (refusée ou retenue).
+    const resultat = /offre a [ée]t[ée] (accept[ée]e|retenue)|soci[ée]t[ée] a [ée]t[ée] retenue|acceptation de l.offre|resultats rfc|résultats rfc/i.test(zone) ? 'retenue'
+      : /offre a [ée]t[ée] rejet[ée]e|refus de l.offre/i.test(zone) ? 'refusee' : null;
+    if (resultat) for (const r of refs) if (offres.get(r) !== 'retenue') offres.set(r, resultat);
     for (const r of refs) {
       if (titres.has(r)) continue;
       const num = r.slice(3).replace(/^0+/, '');
@@ -210,5 +214,6 @@ export async function lireMails(texteCSV) {
   }
   stats.messages = messages.length;
   stats.publications = publications.size;
-  return { messages, stats, titres, publications };
+  stats.offres = offres.size;
+  return { messages, stats, titres, publications, offres };
 }

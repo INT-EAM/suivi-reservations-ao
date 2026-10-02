@@ -13,7 +13,7 @@ L'appli est une page statique (GitHub Pages) ; l'analyse se fait dans le navigat
 
 - **Import** : dépose le CSV des mails et/ou le JSON PWise, vérifie l'aperçu (avant/après sur chaque indicateur), valide. Un mail déjà importé n'est jamais compté deux fois.
 - **Attribution automatique** de chaque AO à un BM (règles ci-dessous), avec l'historique des échanges consultable par AO.
-- **Tableau de bord** : AO réservés non traités, en retard (> 5, 10, 15 j), AO en cours non réservés, classements, fiche par BM, export CSV.
+- **Tableau de bord** : AO réservés non traités, en retard (> 5, 10, 15 j), AO en cours non réservés, classements (chaque chiffre ouvre la liste des AO correspondants), fiche par BM, export CSV.
 - **Équipes** : choisis un ou plusieurs BM, enregistre la sélection comme équipe ; chaque équipe a son lien direct (`…/#equipe=Nom`).
 - **Corrections** : clique sur un AO pour imposer un BM ou l'exclure ; la correction prime sur le calcul et survit aux imports suivants.
 - **Annuaire** : trigrammes et surnoms (« Bubu », « BDU ») pour rattacher les réponses du type « Bruno traite » ou « erratum chez BDU ».
@@ -28,8 +28,9 @@ Toutes dans [`js/regles.js`](js/regles.js) et [`js/attribution.js`](js/attributi
 4. Un BM qui cède la main (« erratum », « vas-y », « Bruno récupère ») est retiré ; s'il désigne quelqu'un, l'AO va à cette personne.
 5. Une correction manuelle prime sur tout le reste.
 6. « Non traité » = AO en cours sur PWise sans réponse INTM soumise. Au-delà de **30 jours** après la réservation, il est compté clos.
-7. OneProcTool n'a pas de statut de réponse : ses AO comptent dans les réservations, pas dans les non traités.
-8. Date de réservation = date du mail PWise / OneProcTool cité dans la réponse (l'export CSV d'Outlook ne contient pas la date d'envoi) ; à défaut, date de sortie de l'AO, affichée « estimée ».
+7. « Réponse soumise » = statut PWise « RFC soumis » ou « RFC retenu », **ou** mail de résultat reçu (« Refus / Acceptation de l'offre » OneProcTool, « Résultats RFC disponibles » PWise), qui prouve qu'INTM a déposé une offre. Un export PWise ultérieur n'efface jamais cette preuve.
+8. OneProcTool n'a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
+9. Date de réservation = date du mail PWise / OneProcTool cité dans la réponse (l'export CSV d'Outlook ne contient pas la date d'envoi) ; à défaut, date de sortie de l'AO, affichée « estimée ».
 
 ## Mise en place
 
