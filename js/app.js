@@ -486,13 +486,48 @@ async function demarrer() {
     $('#app').classList.toggle('hidden', !user);
     if (user) await charger();
   };
+  const msg = t => { $('#loginMsg').textContent = t; };
+  const traduire = m => (/invalid login credentials/i.test(m) ? 'Adresse ou mot de passe incorrect.'
+    : /email not confirmed/i.test(m) ? 'Compte pas encore confirmé : demande à l’administrateur de le valider.'
+    : /rate limit/i.test(m) ? 'Trop de demandes pour le moment : réessaie dans une heure, ou connecte-toi avec ton mot de passe.'
+    : /signups not allowed|user not found/i.test(m) ? 'Aucun compte pour cette adresse : demande à l’administrateur de te créer un accès.' : m);
   $('#fLogin').onsubmit = async e => {
     e.preventDefault();
-    const email = $('#email').value.trim();
-    if (!/@intm\.(fr|com)$/i.test(email)) { $('#loginMsg').textContent = 'Utilise ton adresse @intm.fr.'; return; }
-    try { await S.store.connexion(email); $('#loginMsg').textContent = `Lien envoyé à ${email}. Ouvre-le depuis ta boîte mail, sur cet appareil.`; }
-    catch (err) { $('#loginMsg').textContent = `Envoi impossible : ${err.message}`; }
+    const email = $('#email').value.trim(), mdp = $('#mdp').value;
+    if (!mdp) { msg('Saisis ton mot de passe, ou demande un lien par mail.'); return; }
+    msg('Connexion…');
+    try { await S.store.connexionMdp(email, mdp); msg(''); await montrer(await S.store.utilisateur()); }
+    catch (err) { msg(traduire(err.message)); }
   };
+  $('#bLien').onclick = async () => {
+    const email = $('#email').value.trim();
+    if (!/^[^@\s]+@[^@\s]+$/.test(email)) { msg('Saisis d’abord ton adresse.'); $('#email').focus(); return; }
+    try { await S.store.connexion(email); msg(`Si un compte existe pour ${email}, un lien vient d’être envoyé. Ouvre-le sur cet appareil.`); }
+    catch (err) { msg(traduire(err.message)); }
+  };
+  $('#bCompte').onclick = () => {
+    const dlg = $('#dlg');
+    dlg.innerHTML = `<div class="bar-top"><h2 style="font-size:16px">Mon compte</h2><span class="spacer"></span><button class="btn" id="cFerme">Fermer</button></div>
+      <p class="sub">Connecté en tant que <b>${esc(S.user?.email || '')}</b></p>
+      <h3 style="font-size:13px;color:var(--ink-2)">Changer mon mot de passe</h3>
+      <form id="fMdp" style="display:grid;gap:8px">
+        <input type="password" id="mdp1" placeholder="Nouveau mot de passe (10 caractères minimum)" autocomplete="new-password" minlength="10" required>
+        <input type="password" id="mdp2" placeholder="Confirmer" autocomplete="new-password" required>
+        <div class="row"><span class="sub" id="mdpMsg"></span><span class="spacer"></span><button class="btn primary">Enregistrer</button></div>
+      </form>
+      <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn danger" id="cOut">Se déconnecter</button></div>`;
+    dlg.querySelector('#cFerme').onclick = () => dlg.close();
+    dlg.querySelector('#cOut').onclick = async () => { dlg.close(); await S.store.deconnexion(); await montrer(null); };
+    dlg.querySelector('#fMdp').onsubmit = async e => {
+      e.preventDefault();
+      const a1 = dlg.querySelector('#mdp1').value, a2 = dlg.querySelector('#mdp2').value, m = dlg.querySelector('#mdpMsg');
+      if (a1 !== a2) { m.textContent = 'Les deux saisies ne correspondent pas.'; return; }
+      try { await S.store.changerMdp(a1); m.textContent = 'Mot de passe changé.'; dlg.querySelector('#fMdp').reset(); }
+      catch (err) { m.textContent = traduire(err.message); }
+    };
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  };
+  $('#bCompte').classList.toggle('hidden', S.store.mode === 'local');
   S.store.surChangementSession(u => { if (!!u !== !!S.user) montrer(u); });
   brancher();
   await montrer(await S.store.utilisateur());

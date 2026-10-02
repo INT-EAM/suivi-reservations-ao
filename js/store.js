@@ -22,9 +22,12 @@ async function storeSupabase() {
   return {
     mode: 'supabase',
     async utilisateur() { return (await sb.auth.getSession()).data.session?.user ?? null; },
+    // Lien par mail : ne crée jamais de compte, seuls les comptes déjà créés par l'administrateur le reçoivent.
     async connexion(email) {
-      ok(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0] } }));
+      ok(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0], shouldCreateUser: false } }));
     },
+    async connexionMdp(email, password) { ok(await sb.auth.signInWithPassword({ email, password })); },
+    async changerMdp(password) { ok(await sb.auth.updateUser({ password })); },
     async deconnexion() { await sb.auth.signOut(); },
     surChangementSession(fn) { sb.auth.onAuthStateChange((_e, s) => fn(s?.user ?? null)); },
     async charger() {
@@ -48,7 +51,7 @@ function storeLocal(prefixe = 'sr:') {
   return {
     mode: 'local',
     async utilisateur() { return { email: 'local' }; },
-    async connexion() {}, async deconnexion() {}, surChangementSession() {},
+    async connexion() {}, async connexionMdp() {}, async changerMdp() {}, async deconnexion() {}, surChangementSession() {},
     async charger() { return Object.fromEntries(Object.keys(TABLES).map(t => [t, lire(t)])); },
     async enregistrer(table, lignes) {
       const k = CLES[table], m = new Map(lire(table).map(l => [l[k], l]));

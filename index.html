@@ -15,11 +15,13 @@
 <section id="v-login" class="hidden">
   <div class="card login">
     <h1>Suivi des réservations d'AO</h1>
-    <p class="sub">Connexion réservée aux adresses INTM. Tu reçois un lien par mail, sans mot de passe.</p>
-    <form id="fLogin" class="row" style="margin-top:12px">
-      <input type="email" id="email" placeholder="prenom.nom@intm.fr" required style="flex:1">
-      <button class="btn primary">Recevoir le lien</button>
+    <p class="sub">Accès réservé aux personnes autorisées. Ton compte est créé par l'administrateur de l'appli.</p>
+    <form id="fLogin" style="margin-top:12px;display:grid;gap:8px">
+      <input type="email" id="email" placeholder="prenom.nom@intm.fr" autocomplete="username" required>
+      <input type="password" id="mdp" placeholder="Mot de passe" autocomplete="current-password">
+      <button class="btn primary">Se connecter</button>
     </form>
+    <p class="sub" style="margin-top:10px"><button class="more" id="bLien">Recevoir plutôt un lien de connexion par mail</button></p>
     <p class="sub" id="loginMsg"></p>
   </div>
 </section>
@@ -41,6 +43,7 @@
   </select>
   <button class="btn" data-go="import">Importer</button>
   <button class="btn" data-go="reglages" title="Équipes, annuaire, corrections">Réglages</button>
+  <button class="btn" id="bCompte" title="Mon compte">Compte</button>
   <button class="btn" id="theme" title="Clair / sombre">◐</button>
 </header>
 <div id="panelEquipe" class="panel hidden"></div>

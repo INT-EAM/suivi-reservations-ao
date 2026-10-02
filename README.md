@@ -36,6 +36,11 @@ Toutes dans [`js/regles.js`](js/regles.js) et [`js/attribution.js`](js/attributi
 
 1. **Supabase** : dans le projet, ouvrir *SQL Editor* et exécuter [`supabase/schema.sql`](supabase/schema.sql).
    Puis *Authentication > URL Configuration* : ajouter l'URL GitHub Pages de l'appli dans *Redirect URLs*.
+   Accès (sans dépendre d'un envoi de mail) :
+   - *Authentication > Sign In / Providers* : désactiver **Allow new users to sign up** (personne ne peut se créer un compte seul) ; dans *Email*, fixer la longueur minimale du mot de passe à 10.
+   - Pour donner l'accès à quelqu'un : *Authentication > Users > Add user > Create new user*, son adresse @intm.fr, un mot de passe provisoire, cocher **Auto Confirm User**. Il le change ensuite dans l'appli (bouton *Compte*).
+   - Pour retirer l'accès : supprimer l'utilisateur dans la même page. Mot de passe oublié : *… > Reset password* ou lui en fixer un nouveau.
+   - Le lien par mail reste disponible pour les comptes existants, mais le service d'envoi intégré à Supabase est limité (2 mails/heure, membres du projet uniquement) : il faut un SMTP pour l'utiliser vraiment.
 2. **Configuration** : renseigner la clé `anon public` dans [`js/config.js`](js/config.js) (*Project Settings > API*).
    Cette clé est publique par conception ; la sécurité repose sur la RLS du schéma, qui n'ouvre les tables qu'aux comptes @intm.fr connectés.
 3. **GitHub Pages** : *Settings > Pages > Deploy from a branch > main / root*.
