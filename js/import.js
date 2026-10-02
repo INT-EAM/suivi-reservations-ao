@@ -3,6 +3,15 @@ import { decoder, lireMails } from './import-mails.js';
 import { lirePWise } from './import-pwise.js';
 import { calculer } from './calcul.js';
 
+// Date de sortie : la plus ancienne connue ; à jour égal, celle qui porte l'heure (lue dans un mail).
+// L'export PWise donne la date de synchro, jamais antérieure à la vraie date de sortie.
+export function plusAncienne(x, y) {
+  if (!x) return y || null; if (!y) return x;
+  const jx = String(x).slice(0, 10), jy = String(y).slice(0, 10);
+  if (jx !== jy) return jx < jy ? x : y;
+  return String(x).length >= String(y).length ? x : y;
+}
+
 const lireFichier = f => (f.arrayBuffer ? f.arrayBuffer().then(decoder) : Promise.resolve(f.texte));
 
 /**
@@ -23,7 +32,8 @@ export async function preparerImport(fichiers, existant) {
     for (const a of p.ao) {
       const avant = catalogue.get(a.ref) || {};
       // Une réponse déjà prouvée (mail de résultat) n'est jamais effacée par un export PWise.
-      res.aoAEnregistrer.push({ ...avant, ...a, reponse_soumise: a.reponse_soumise === true || avant.reponse_soumise === true ? true : (a.reponse_soumise ?? avant.reponse_soumise ?? null), maj: new Date().toISOString() });
+      res.aoAEnregistrer.push({ ...avant, ...a, reponse_soumise: a.reponse_soumise === true || avant.reponse_soumise === true ? true : (a.reponse_soumise ?? avant.reponse_soumise ?? null),
+        date_publication: plusAncienne(avant.date_publication, a.date_publication), maj: new Date().toISOString() });
     }
     for (const a of existant.ao) {
       if (a.plateforme === 'PWise' && a.vu_dernier_export && !vus.has(a.ref)) res.aoAEnregistrer.push({ ...a, vu_dernier_export: false, en_cours: false });
@@ -44,12 +54,12 @@ export async function preparerImport(fichiers, existant) {
     // Date de sortie lue dans les notifications : plus précise que la date d'ouverture du JSON (date de synchro).
     for (const a of res.aoAEnregistrer) {
       const p = m.publications.get(a.ref);
-      if (p && (!a.date_publication || a.date_publication.length <= 10 || p < a.date_publication)) a.date_publication = p;
+      if (p) a.date_publication = plusAncienne(a.date_publication, p);
       if (!a.titre && m.titres.get(a.ref)) a.titre = m.titres.get(a.ref);
     }
     for (const a of existant.ao) {
       const p = m.publications.get(a.ref);
-      if (p && !res.aoAEnregistrer.some(x => x.ref === a.ref) && (!a.date_publication || String(a.date_publication).length <= 10)) res.aoAEnregistrer.push({ ...a, date_publication: p });
+      if (p && !res.aoAEnregistrer.some(x => x.ref === a.ref) && plusAncienne(a.date_publication, p) !== a.date_publication) res.aoAEnregistrer.push({ ...a, date_publication: p });
     }
     // Mails « refus / acceptation de l'offre », « résultats RFC » : INTM avait déposé une réponse.
     const prevusOffre = new Map(res.aoAEnregistrer.map(a => [a.ref, a]));

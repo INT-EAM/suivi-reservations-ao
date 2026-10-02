@@ -169,3 +169,14 @@ test('offre retenue : colonne Retenus (PWise par statut, OneProcTool par mail)',
   const ret = Object.fromEntries(r.apres.reservations.map(x => [x.ref, x.retenu]));
   assert.deepEqual(ret, { BPM043002: true, RFC00020001: true, RFC00020002: false });
 });
+
+test('date de sortie : un export PWise ne remplace jamais une date plus ancienne', async () => {
+  const { plusAncienne } = await import('../js/import.js');
+  assert.equal(plusAncienne('2026-09-20T09:12:00', '2026-10-02'), '2026-09-20T09:12:00');
+  assert.equal(plusAncienne('2026-10-02', '2026-10-02T08:00:00'), '2026-10-02T08:00:00');
+  assert.equal(plusAncienne(null, '2026-10-02'), '2026-10-02');
+  const avant = { ao: [{ ref: 'RFC00012345', plateforme: 'PWise', statut_pwise: 'Réponse fournisseur en cours', vu_dernier_export: true, date_publication: '2026-09-20T09:12:00' }], messages: [], corrections: [], bm: [] };
+  const pw = JSON.stringify({ aos: [{ rfc: 'RFC00012345', intitule: 'Dev', statutPwise: 'Réponse fournisseur en cours', dateOuverture: '2026-10-02' }] });
+  const r = await preparerImport({ pwise: { name: 'p.json', texte: pw } }, avant);
+  assert.equal(r.aoAEnregistrer[0].date_publication, '2026-09-20T09:12:00');
+});
