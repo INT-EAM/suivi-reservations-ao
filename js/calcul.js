@@ -52,6 +52,8 @@ export function calculer({ ao = [], messages = [], corrections = [], bm = [] }, 
     reservations.push({
       ref, plateforme, bm: a.bm, via: a.via, date, estimee, jours: j, s,
       titre: fiche?.titre || '(intitulé inconnu)', corrige: a.via === 'correction',
+      // Offre INTM retenue : statut PWise « RFC retenu », ou mail d'acceptation (OneProcTool) / de résultats (PWise).
+      retenu: /^rfc retenu$|^offre retenue$/i.test(fiche?.statut_pwise || ''),
     });
   }
 

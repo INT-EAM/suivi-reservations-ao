@@ -154,3 +154,18 @@ test('favori v3 : profils lus sur la page de détail', async () => {
   assert.equal(s('RFC00010003'), 'N', 'clos, aucun profil : certain');
   assert.equal(s('RFC00010004'), 'C', 'page non lue : incertain');
 });
+
+test('offre retenue : colonne Retenus (PWise par statut, OneProcTool par mail)', async () => {
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const L = (o, c, n, a) => [o, c, n, a, 'SMTP'].map(q).join(',');
+  const csv = ['Objet,Corps,"De: (nom)","De: (adresse)","De: (type)"',
+    L("[POUR INFORMATION] Acceptation de l'offre sur la consultation : BPM043002 - X", 'votre offre a été acceptée\n*\tBPM Name: BPM043002 - X', 'BNP PARIBAS OneProcTool', 'x@oneproctool-info.bnpparibas.com'),
+    L('RE: BPM043002', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+    L('RE: RFC00020001', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+    L('RE: RFC00020002', 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr'),
+  ].join('\r\n');
+  const pw = JSON.stringify({ aos: [{ rfc: 'RFC00020001', statutPwise: 'RFC retenu' }, { rfc: 'RFC00020002', statutPwise: 'RFC soumis' }] });
+  const r = await preparerImport({ mails: { name: 'm.csv', texte: csv }, pwise: { name: 'p.json', texte: pw } }, { ao: [], messages: [], corrections: [], bm: [] });
+  const ret = Object.fromEntries(r.apres.reservations.map(x => [x.ref, x.retenu]));
+  assert.deepEqual(ret, { BPM043002: true, RFC00020001: true, RFC00020002: false });
+});

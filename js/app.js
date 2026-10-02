@@ -107,8 +107,8 @@ function renderPanelEquipe() {
 function rankData(L) {
   const m = {};
   for (const a of L) {
-    const r = m[a.bm] = m[a.bm] || { bm: a.bm, total: 0, wait: 0, traites: 0, sum: 0, nj: 0, old: null };
-    r.total++; if (a.s === 'T') r.traites++;
+    const r = m[a.bm] = m[a.bm] || { bm: a.bm, total: 0, wait: 0, traites: 0, retenus: 0, sum: 0, nj: 0, old: null };
+    r.total++; if (a.s === 'T') r.traites++; if (a.retenu) r.retenus++;
     if (a.s === 'A') { r.wait++; if (a.jours !== null) { r.sum += a.jours; r.nj++; if (!r.old || a.jours > r.old.jours) r.old = a; } }
   }
   return Object.values(m).map(r => ({ ...r, avg: r.nj ? Math.round(r.sum / r.nj) : null, oldj: r.old ? r.old.jours : null }));
@@ -157,7 +157,7 @@ function table(sel, key, cols, rows, onRow) {
 }
 const joursCell = a => (a.jours === null ? '<span class="muted">—</span>' : `${a.jours} j${a.s === 'A' && a.jours > S.seuil ? ' <span class="dot" style="background:var(--warn);margin:0 0 0 4px"></span>' : ''}`);
 const dateCell = a => (a.date ? `${fd(a.date)}${a.estimee ? ' <span class="est" title="Date estimée : sortie de l’AO">estimée</span>' : ''}` : '<span class="muted">inconnue</span>');
-const stCell = a => `<span class="st"><span class="dot" style="background:${STATUTS[a.s].couleur}"></span>${STATUTS[a.s].lib}</span>${a.corrige ? '<span class="tag">corrigé</span>' : ''}`;
+const stCell = a => `<span class="st"><span class="dot" style="background:${STATUTS[a.s].couleur}"></span>${STATUTS[a.s].lib}</span>${a.retenu ? '<span class="tag tag-ok">retenu</span>' : ''}${a.corrige ? '<span class="tag">corrigé</span>' : ''}`;
 const C_AO = avecBM => [
   { k: 'jours', h: 'Jours écoulés', num: 1, v: a => a.jours, f: joursCell },
   { k: 'date', h: 'Réservé le', v: a => (a.date ? a.date.getTime() : null), f: dateCell, m: 1, csv: a => (a.date ? fd(a.date) + (a.estimee ? ' (estimée)' : '') : '') },
@@ -170,6 +170,7 @@ const C_RANK = [
   { k: 'wait', h: 'En cours', num: 1, v: r => r.wait, f: r => nb(r, 'A', r.wait) },
   { k: 'total', h: 'Total', num: 1, v: r => r.total, f: r => nb(r, 'all', r.total) },
   { k: 'traites', h: 'Réponses soumises', num: 1, v: r => r.traites, f: r => nb(r, 'T', r.traites) },
+  { k: 'retenus', h: 'Retenus', num: 1, v: r => r.retenus, f: r => nb(r, 'R', r.retenus) },
   { k: 'avg', h: 'Attente moy.', num: 1, v: r => r.avg, f: r => (r.avg === null ? '<span class="muted">—</span>' : r.avg + ' j'), m: 1 },
   { k: 'oldj', h: 'Plus ancien', num: 1, v: r => r.oldj, f: r => (r.oldj === null ? '<span class="muted">—</span>' : r.oldj + ' j') },
 ];
@@ -181,9 +182,9 @@ const C_FREE = [
 ];
 
 // Chiffre cliquable du classement : ouvre la liste des AO correspondants.
-const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO avec réponse soumise' };
+const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO avec réponse soumise', R: 'AO retenus' };
 const nb = (r, f, n) => (n ? `<button class="nb" data-bm="${esc(r.bm)}" data-f="${f}" title="${FILTRES[f]} — ${esc(r.bm)}">${n}</button>` : '<span class="muted">0</span>');
-const filtrerStatut = (L, f) => (f === 'all' ? L : L.filter(a => a.s === f));
+const filtrerStatut = (L, f) => (f === 'all' ? L : f === 'R' ? L.filter(a => a.retenu) : L.filter(a => a.s === f));
 
 // ---------------------------------------------------------------- vues
 function ouvrirPersonne(p) { S.person = p; S.pf = 'A'; aller('person'); }
@@ -240,7 +241,7 @@ function render(garderPanel = false) {
     $('#pOld').textContent = o ? o.jours + ' j' : '—'; $('#pOldRef').textContent = o ? o.ref : '';
     $$('#pFiltres [data-pf]').forEach(b => {
       const f = b.dataset.pf; b.setAttribute('aria-pressed', S.pf === f);
-      b.textContent = `${{ A: 'Non traités', T: 'Réponses soumises', all: 'Tous' }[f]} · ${filtrerStatut(all, f).length}`;
+      b.textContent = `${{ A: 'Non traités', T: 'Réponses soumises', R: 'Retenus', all: 'Tous' }[f]} · ${filtrerStatut(all, f).length}`;
     });
     const n = table('#tPerson', 'person', C_AO(false), filtrerStatut(all, S.pf), a => ouvrirAO(a.ref)).length;
     $('#pCount').textContent = pluriel(n, 'AO', 'AO');
@@ -454,7 +455,7 @@ function brancher() {
 
   $$('[data-csv]').forEach(b => b.onclick = () => {
     const t = LAST[b.dataset.csv]; if (!t) return;
-    const val = (c, r) => (c.csv ? c.csv(r) : c.k === 's' ? STATUTS[r.s].lib : c.v(r) ?? '');
+    const val = (c, r) => (c.csv ? c.csv(r) : c.k === 's' ? STATUTS[r.s].lib + (r.retenu ? ' · retenu' : '') : c.v(r) ?? '');
     const csv = [t.cols.map(c => c.h)].concat(t.rows.map(r => t.cols.map(c => val(c, r))))
       .map(l => l.map(x => '"' + String(x).replace(/"/g, '""') + '"').join(';')).join('\r\n');
     const a = document.createElement('a');

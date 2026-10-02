@@ -53,13 +53,20 @@ export async function preparerImport(fichiers, existant) {
     }
     // Mails « refus / acceptation de l'offre », « résultats RFC » : INTM avait déposé une réponse.
     const prevusOffre = new Map(res.aoAEnregistrer.map(a => [a.ref, a]));
-    for (const [ref] of m.offres) {
+    // Offre retenue : PWise le dit dans son statut ; pour OneProcTool, seul le mail le dit.
+    const marquerRetenue = (a, resultat) => {
+      if (resultat !== 'retenue') return;
+      if (a.plateforme === 'OneProcTool') a.statut_pwise = 'Offre retenue';
+      else if (!fichiers.pwise && !/retenu/i.test(a.statut_pwise || '')) a.statut_pwise = 'RFC retenu';
+    };
+    for (const [ref, resultat] of m.offres) {
       const a = prevusOffre.get(ref);
-      if (a) { a.reponse_soumise = true; continue; }
+      if (a) { a.reponse_soumise = true; marquerRetenue(a, resultat); continue; }
       const avant = catalogue.get(ref);
-      if (avant?.reponse_soumise) continue;
+      if (avant?.reponse_soumise && (resultat !== 'retenue' || /retenu/i.test(avant.statut_pwise || ''))) continue;
       const nouv = { ...(avant || { ref, plateforme: ref.startsWith('BPM') ? 'OneProcTool' : 'PWise', titre: m.titres.get(ref) || null,
         date_publication: m.publications.get(ref) || null, vu_dernier_export: false, en_cours: false }), reponse_soumise: true };
+      marquerRetenue(nouv, resultat);
       res.aoAEnregistrer.push(nouv); prevusOffre.set(ref, nouv);
     }
     const prevus = new Set(res.aoAEnregistrer.map(a => a.ref));
