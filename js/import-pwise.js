@@ -26,7 +26,7 @@ const CHAMPS = {
   statut: [/^statut_?pwise$/i, /^(statut|status|[ée]tat)$/i, /(statut|status)/i],
   publication: [/(publi|cr[ée]ation|creat|ouverture|emission|[ée]mis|sortie)/i],
   debut: [/(d[ée]but|start|date de d)/i],
-  soumis: [/(soumis|submitted|r[ée]ponse.*(fournisseur|intm))/i],
+  soumis: [/^profilsSoumis$/i, /(soumis|submitted)/i],
 };
 function choisirCles(exemples) {
   const cles = [...new Set(exemples.flatMap(o => Object.keys(o)))];
@@ -69,7 +69,9 @@ export function lirePWise(texteJSON) {
     const ref = String(o[k.ref] ?? '').trim().toUpperCase();
     if (!/^RFC\d{8}$/.test(ref)) continue;
     const statut = k.statut ? String(o[k.statut] ?? '').trim() : '';
-    const soumis = k.soumis ? o[k.soumis] : undefined;
+    // Phase 2 du favori : profils lus sur la page de détail (nbProfils) = information certaine.
+    const soumis = o.detailLu === true && typeof o.nbProfils === 'number' ? o.nbProfils > 0
+      : k.soumis && typeof o[k.soumis] === 'boolean' && o.detailLu !== false ? o[k.soumis] : undefined;
     ao.push({
       ref, plateforme: 'PWise',
       titre: k.titre ? String(o[k.titre] ?? '').trim() || null : null,
@@ -82,5 +84,7 @@ export function lirePWise(texteJSON) {
       vu_dernier_export: true,
     });
   }
-  return { ao, cles: k, stats: { lignes: lignes.length, ao: ao.length, enCours: ao.filter(a => a.en_cours).length } };
+  const lus = lignes.filter(o => o.detailLu === true);
+  return { ao, cles: k, stats: { lignes: lignes.length, ao: ao.length, enCours: ao.filter(a => a.en_cours).length,
+    profilsLus: lus.length, avecProfil: lus.filter(o => o.nbProfils > 0).length } };
 }

@@ -30,6 +30,7 @@ export const STATUTS = {
   A: { lib: 'Non traité', couleur: 'var(--bad)' },
   T: { lib: 'Réponse soumise', couleur: 'var(--good)' },
   C: { lib: 'Clos sans réponse certaine', couleur: 'var(--neutral)' },
+  N: { lib: 'Clos sans profil proposé', couleur: 'var(--neutral)' },
   X: { lib: 'Clos (non traité > 30 j)', couleur: 'var(--neutral)' },
   U: { lib: 'OneProcTool · statut non suivi', couleur: 'var(--neutral)' },
 };

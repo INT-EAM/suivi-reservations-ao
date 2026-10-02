@@ -133,3 +133,24 @@ test('mail de résultat : réponse soumise prouvée, jamais effacée par PWise',
   const ensuite = await preparerImport({ pwise: { name: 'p.json', texte: pw } }, { ...vide, ao: r.aoAEnregistrer, messages: r.messagesNouveaux });
   assert.equal(ensuite.aoAEnregistrer.find(a => a.ref === 'RFC00012345').reponse_soumise, true);
 });
+
+test('favori v3 : profils lus sur la page de détail', async () => {
+  const pw = JSON.stringify({ version: 3, aos: [
+    { rfc: 'RFC00010001', intitule: 'A', statutPwise: 'Réponse fournisseur en cours', detailLu: true, nbProfils: 1, profilsSoumis: true },
+    { rfc: 'RFC00010002', intitule: 'B', statutPwise: 'Réponse fournisseur en cours', detailLu: true, nbProfils: 0, profilsSoumis: false },
+    { rfc: 'RFC00010003', intitule: 'C', statutPwise: 'RFC non retenu', detailLu: true, nbProfils: 0, profilsSoumis: false },
+    { rfc: 'RFC00010004', intitule: 'D', statutPwise: 'RFC non retenu', detailLu: false, detailErreur: 'délai' },
+  ] });
+  const { ao, stats } = lirePWise(pw);
+  assert.deepEqual(ao.map(a => a.reponse_soumise), [true, false, false, null]);
+  assert.deepEqual([stats.profilsLus, stats.avecProfil], [3, 1]);
+  const q = s => `"${s}"`;
+  const csv = ['Objet,Corps,"De: (nom)","De: (adresse)","De: (type)"', ...['RFC00010001', 'RFC00010002', 'RFC00010003', 'RFC00010004']
+    .map(r => [`RE: ${r}`, 'Je traite', 'Alice MARTIN', 'alice.martin@intm.fr', 'SMTP'].map(q).join(','))].join('\r\n');
+  const r = await preparerImport({ mails: { name: 'm.csv', texte: csv }, pwise: { name: 'p.json', texte: pw } }, { ao: [], messages: [], corrections: [], bm: [] });
+  const s = ref => r.apres.reservations.find(x => x.ref === ref).s;
+  assert.equal(s('RFC00010001'), 'T', 'profil proposé : réponse soumise même si PWise dit « en cours »');
+  assert.equal(s('RFC00010002'), 'A', 'en cours sans profil : non traité');
+  assert.equal(s('RFC00010003'), 'N', 'clos, aucun profil : certain');
+  assert.equal(s('RFC00010004'), 'C', 'page non lue : incertain');
+});

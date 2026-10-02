@@ -28,7 +28,7 @@ Toutes dans [`js/regles.js`](js/regles.js) et [`js/attribution.js`](js/attributi
 4. Un BM qui cède la main (« erratum », « vas-y », « Bruno récupère ») est retiré ; s'il désigne quelqu'un, l'AO va à cette personne.
 5. Une correction manuelle prime sur tout le reste.
 6. « Non traité » = AO en cours sur PWise sans réponse INTM soumise. Au-delà de **30 jours** après la réservation, il est compté clos.
-7. « Réponse soumise » = statut PWise « RFC soumis » ou « RFC retenu », **ou** mail de résultat reçu (« Refus / Acceptation de l'offre » OneProcTool, « Résultats RFC disponibles » PWise), qui prouve qu'INTM a déposé une offre. Un export PWise ultérieur n'efface jamais cette preuve.
+7. « Réponse soumise » = au moins un profil proposé sur la page de détail PWise (favori), statut PWise « RFC soumis » ou « RFC retenu », **ou** mail de résultat reçu (« Refus / Acceptation de l'offre » OneProcTool, « Résultats RFC disponibles » PWise), qui prouve qu'INTM a déposé une offre. Un export PWise ultérieur n'efface jamais cette preuve.
 8. OneProcTool n'a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
 9. Date de réservation = date du mail PWise / OneProcTool cité dans la réponse (l'export CSV d'Outlook ne contient pas la date d'envoi) ; à défaut, date de sortie de l'AO, affichée « estimée ».
 
@@ -50,6 +50,16 @@ Sans clé Supabase, l'appli tourne en **mode local** : les données restent dans
 Les dates viennent des mails eux-mêmes, l'export CSV d'Outlook n'ayant pas de colonne date :
 la date de sortie d'un AO est l'heure de réception lue dans les liens Safelinks de sa notification ;
 la date d'une réponse est celle du mail cité (« Envoyé : … »), à défaut l'heure de réception lue dans un lien de la réponse.
+
+## Le favori d'extraction PWise
+
+[`outils/pwise-bookmarklet.txt`](outils/pwise-bookmarklet.txt) se colle dans l'URL d'un favori ; il se lance depuis la liste des demandes de PWise. Source lisible : [`outils/pwise-extract.src.js`](outils/pwise-extract.src.js), reconstruire avec `node outils/build-bookmarklet.mjs`.
+
+1. Lit toutes les pages de la liste (référence, intitulé, statut, dates…).
+2. Charge en arrière-plan la page de détail de chaque AO, sans quitter la liste, et lit le bloc **Profils** : nombre de profils proposés et codes PROP…. Si le bloc n'est pas présent dans la page téléchargée, le favori bascule sur une iframe cachée (plus lent).
+3. Télécharge `pwise_sync_AAAA-MM-JJ.json`, que l'appli importe.
+
+Effet dans l'appli : un AO avec au moins un profil proposé compte en « réponse soumise », même si PWise affiche encore « Réponse fournisseur en cours » ; un AO clos sans aucun profil passe en « clos sans profil proposé ».
 
 ## Développement
 

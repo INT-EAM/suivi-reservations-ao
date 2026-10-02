@@ -23,7 +23,7 @@ export async function preparerImport(fichiers, existant) {
     for (const a of p.ao) {
       const avant = catalogue.get(a.ref) || {};
       // Une réponse déjà prouvée (mail de résultat) n'est jamais effacée par un export PWise.
-      res.aoAEnregistrer.push({ ...avant, ...a, reponse_soumise: a.reponse_soumise || avant.reponse_soumise || null, maj: new Date().toISOString() });
+      res.aoAEnregistrer.push({ ...avant, ...a, reponse_soumise: a.reponse_soumise === true || avant.reponse_soumise === true ? true : (a.reponse_soumise ?? avant.reponse_soumise ?? null), maj: new Date().toISOString() });
     }
     for (const a of existant.ao) {
       if (a.plateforme === 'PWise' && a.vu_dernier_export && !vus.has(a.ref)) res.aoAEnregistrer.push({ ...a, vu_dernier_export: false, en_cours: false });

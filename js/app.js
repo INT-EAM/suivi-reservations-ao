@@ -248,7 +248,7 @@ function render(garderPanel = false) {
   if (S.vue === 'import') renderImport();
   if (S.vue === 'reglages') renderReglages();
   $('#foot').innerHTML = `Règles : périmètre PWise et OneProcTool. L’AO revient au dernier BM qui l’a revendiqué (« c’est chez moi ») ; sans revendication, au premier positionné ; un BM qui cède la main est retiré ; une correction manuelle prime.
-    « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. « Réponse soumise » = statut PWise « RFC soumis / retenu », ou mail de résultat reçu (refus, acceptation de l’offre, résultats RFC). OneProcTool n’a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
+    « Non traité » = AO en cours sur PWise sans réponse INTM soumise ; au-delà de ${REGLES.closAutoJours} jours après la réservation, il est compté clos. « Réponse soumise » = au moins un profil proposé sur la page de détail PWise, statut « RFC soumis / retenu », ou mail de résultat reçu (refus, acceptation de l’offre, résultats RFC). OneProcTool n’a pas de statut « en cours » : ses AO sans mail de résultat comptent dans les réservations, pas dans les non traités.
     Date de réservation = date du mail PWise / OneProcTool cité dans la réponse ; à défaut, date de sortie de l’AO (« estimée »).`;
 }
 
@@ -335,7 +335,8 @@ function renderImport() {
       <div class="card"><h3>PWise</h3>${w ? `<div class="kv">
         <span>AO dans l’extraction</span><span class="n">${w.ao}</span><span></span>
         <span>En cours</span><span class="n">${w.enCours}</span><span></span>
-        <span>Sortis de l’extraction</span><span class="n">${w.disparus}</span><span class="h">passent en clos</span></div>
+        <span>Sortis de l’extraction</span><span class="n">${w.disparus}</span><span class="h">passent en clos</span>
+        <span>Profils lus en détail</span><span class="n">${w.profilsLus}</span><span class="h">${w.profilsLus ? `${w.avecProfil} avec au moins un profil` : 'favori sans la phase 2'}</span></div>
         <div class="sub" style="margin-top:8px">Champs reconnus : ${Object.entries(p.cles).filter(([k, v]) => v || k !== 'soumis').map(([k, v]) => `${k} → ${v ? esc(v) : '<b>introuvable</b>'}`).join(' · ')}</div>` : '<span class="sub">Pas de fichier : les statuts restent ceux du dernier import.</span>'}</div>
     </div>
     <div class="card"><h3>Effet sur le tableau de bord</h3><div class="kv">

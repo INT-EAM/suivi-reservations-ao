@@ -5,16 +5,17 @@ import { creerAnnuaire, messagesEffectifs } from './annuaire.js';
 
 export const EN_COURS = 'Réponse fournisseur en cours';
 
-// Statut d'une réservation vu depuis PWise. OneProcTool : pas de statut de réponse disponible.
+// Statut d'une réservation : réponse prouvée (T), non traité (A), clos sans profil (N), clos incertain (C), OneProcTool sans résultat (U).
 export function statutReservation(ao, plateforme) {
   // Réponse prouvée : statut PWise « soumis / retenu » ou mail de résultat (refus, acceptation) reçu.
   if (ao?.reponse_soumise === true) return 'T';
   if (plateforme === 'OneProcTool') return 'U';
   if (!ao || !ao.vu_dernier_export) return 'C';             // absent du dernier export : clos
   const s = (ao.statut_pwise || '').toLowerCase();
-  if (ao.reponse_soumise === true || /\bsoumis\b|^rfc retenu$/.test(s)) return 'T';
+  if (/\bsoumis\b|^rfc retenu$/.test(s)) return 'T';
   if (s === EN_COURS.toLowerCase()) return 'A';
-  return 'C';
+  // Page de détail lue et aucun profil proposé : on sait qu'INTM n'a pas répondu.
+  return ao.reponse_soumise === false ? 'N' : 'C';
 }
 
 const plateformeDe = ref => (/^BPM/i.test(ref) ? 'OneProcTool' : 'PWise');
