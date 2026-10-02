@@ -13,7 +13,7 @@ L'appli est une page statique (GitHub Pages) ; l'analyse se fait dans le navigat
 
 - **Import** : dépose le CSV des mails et/ou le JSON PWise, vérifie l'aperçu (avant/après sur chaque indicateur), valide. Un mail déjà importé n'est jamais compté deux fois.
 - **Attribution automatique** de chaque AO à un BM (règles ci-dessous), avec l'historique des échanges consultable par AO.
-- **Tableau de bord** : AO réservés non traités, en retard (> 5, 10, 15 j), AO en cours non réservés, classements avec en cours, total, réponses soumises et retenus par BM (chaque chiffre ouvre la liste des AO correspondants), fiche par BM, export CSV.
+- **Tableau de bord** : AO réservés non traités, en retard (> 5, 10, 15 j), AO en cours non réservés, classements par BM : en cours, total, dont OneProcTool, répondus / réservés PWise, taux et retenus PWise (chaque chiffre ouvre la liste des AO correspondants), fiche par BM, export CSV.
 - **Équipes** : choisis un ou plusieurs BM, enregistre la sélection comme équipe ; chaque équipe a son lien direct (`…/#equipe=Nom`).
 - **Corrections** : clique sur un AO pour imposer un BM ou l'exclure ; la correction prime sur le calcul et survit aux imports suivants.
 - **Annuaire** : trigrammes et surnoms (« Bubu », « BDU ») pour rattacher les réponses du type « Bruno traite » ou « erratum chez BDU ».

@@ -107,8 +107,11 @@ function renderPanelEquipe() {
 function rankData(L) {
   const m = {};
   for (const a of L) {
-    const r = m[a.bm] = m[a.bm] || { bm: a.bm, total: 0, wait: 0, traites: 0, retenus: 0, sum: 0, nj: 0, old: null };
-    r.total++; if (a.s === 'T') r.traites++; if (a.retenu) r.retenus++;
+    const r = m[a.bm] = m[a.bm] || { bm: a.bm, total: 0, opt: 0, pw: 0, wait: 0, traites: 0, retenus: 0, sum: 0, nj: 0, old: null };
+    r.total++;
+    // Réponses, taux et retenus : PWise uniquement ; OneProcTool ne compte que dans le total.
+    if (a.plateforme === 'OneProcTool') r.opt++;
+    else { r.pw++; if (a.s === 'T') r.traites++; if (a.retenu) r.retenus++; }
     if (a.s === 'A') { r.wait++; if (a.jours !== null) { r.sum += a.jours; r.nj++; if (!r.old || a.jours > r.old.jours) r.old = a; } }
   }
   return Object.values(m).map(r => ({ ...r, avg: r.nj ? Math.round(r.sum / r.nj) : null, oldj: r.old ? r.old.jours : null }));
@@ -131,9 +134,9 @@ function renderHome() {
   const F = libres(), Fs = F.filter(a => a.jours > S.seuilF);
   $('#nFree').textContent = Fs.length;
   $('#nFreeNote').textContent = `personne ne s’est positionné · ${F.length} non réservés sortis depuis ${REGLES.nonReservesMaxJours} jours ou moins`;
-  const T = L.filter(a => a.s === 'T').length;
-  $('#nRep').innerHTML = `${T}<span class="sur"> / ${L.length}</span>`;
-  $('#nRepNote').textContent = L.length ? `${pct(T, L.length)} des AO réservés ont une réponse soumise` : 'aucun AO réservé';
+  const P = L.filter(estPW), T = P.filter(a => a.s === 'T').length;
+  $('#nRep').innerHTML = `${T}<span class="sur"> / ${P.length}</span>`;
+  $('#nRepNote').textContent = P.length ? `${pct(T, P.length)} des AO PWise réservés · hors ${L.length - P.length} OneProcTool` : 'aucun AO PWise réservé';
   const rk = rankData(L); rankList($('#rkStock'), rk, 'wait'); rankList($('#rkGlobal'), rk, 'total');
 }
 
@@ -172,9 +175,10 @@ const C_RANK = [
   { k: 'bm', h: 'Réserveur', v: r => r.bm },
   { k: 'wait', h: 'En cours', num: 1, v: r => r.wait, f: r => nb(r, 'A', r.wait) },
   { k: 'total', h: 'Total', num: 1, v: r => r.total, f: r => nb(r, 'all', r.total) },
-  { k: 'traites', h: 'Répondus / réservés', num: 1, v: r => r.traites, f: r => `${nb(r, 'T', r.traites)}<span class="sur"> / ${r.total}</span>`, csv: r => `${r.traites} / ${r.total}` },
-  { k: 'taux', h: 'Taux', num: 1, v: r => (r.total ? r.traites / r.total : null), f: r => pct(r.traites, r.total), csv: r => pct(r.traites, r.total) },
-  { k: 'retenus', h: 'Retenus', num: 1, v: r => r.retenus, f: r => nb(r, 'R', r.retenus) },
+  { k: 'opt', h: 'dont OneProcTool', num: 1, v: r => r.opt, f: r => nb(r, 'O', r.opt), m: 1 },
+  { k: 'traites', h: 'Répondus / réservés PWise', num: 1, v: r => r.traites, f: r => `${nb(r, 'T', r.traites)}<span class="sur"> / ${r.pw}</span>`, csv: r => `${r.traites} / ${r.pw}` },
+  { k: 'taux', h: 'Taux PWise', num: 1, v: r => (r.pw ? r.traites / r.pw : null), f: r => pct(r.traites, r.pw), csv: r => pct(r.traites, r.pw) },
+  { k: 'retenus', h: 'Retenus PWise', num: 1, v: r => r.retenus, f: r => nb(r, 'R', r.retenus) },
   { k: 'avg', h: 'Attente moy.', num: 1, v: r => r.avg, f: r => (r.avg === null ? '<span class="muted">—</span>' : r.avg + ' j'), m: 1 },
   { k: 'oldj', h: 'Plus ancien', num: 1, v: r => r.oldj, f: r => (r.oldj === null ? '<span class="muted">—</span>' : r.oldj + ' j') },
 ];
@@ -186,10 +190,12 @@ const C_FREE = [
 ];
 
 // Chiffre cliquable du classement : ouvre la liste des AO correspondants.
-const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO avec réponse soumise', R: 'AO retenus' };
+const FILTRES = { A: 'AO en cours non traités', all: 'Tous les AO réservés', T: 'AO PWise avec réponse soumise', R: 'AO PWise retenus', O: 'AO OneProcTool réservés' };
+const estPW = a => a.plateforme !== 'OneProcTool';
 const nb = (r, f, n) => (n ? `<button class="nb" data-bm="${esc(r.bm)}" data-f="${f}" title="${FILTRES[f]} — ${esc(r.bm)}">${n}</button>` : '<span class="muted">0</span>');
 const pct = (n, d) => (d ? Math.round(100 * n / d) + ' %' : '—');
-const filtrerStatut = (L, f) => (f === 'all' ? L : f === 'R' ? L.filter(a => a.retenu) : L.filter(a => a.s === f));
+const filtrerStatut = (L, f) => (f === 'all' ? L : f === 'O' ? L.filter(a => !estPW(a)) : f === 'R' ? L.filter(a => estPW(a) && a.retenu)
+  : f === 'T' ? L.filter(a => estPW(a) && a.s === 'T') : L.filter(a => a.s === f));
 
 // ---------------------------------------------------------------- vues
 function ouvrirPersonne(p) { S.person = p; S.pf = 'A'; aller('person'); }
@@ -246,7 +252,7 @@ function render(garderPanel = false) {
     $('#pOld').textContent = o ? o.jours + ' j' : '—'; $('#pOldRef').textContent = o ? o.ref : '';
     $$('#pFiltres [data-pf]').forEach(b => {
       const f = b.dataset.pf; b.setAttribute('aria-pressed', S.pf === f);
-      b.textContent = `${{ A: 'Non traités', T: 'Réponses soumises', R: 'Retenus', all: 'Tous' }[f]} · ${filtrerStatut(all, f).length}`;
+      b.textContent = `${{ A: 'Non traités', T: 'Réponses PWise', R: 'Retenus PWise', O: 'OneProcTool', all: 'Tous' }[f]} · ${filtrerStatut(all, f).length}`;
     });
     const n = table('#tPerson', 'person', C_AO(false), filtrerStatut(all, S.pf), a => ouvrirAO(a.ref)).length;
     $('#pCount').textContent = pluriel(n, 'AO', 'AO');
@@ -324,7 +330,7 @@ function renderImport() {
   if (!p) { el.innerHTML = ''; return; }
   if (p.erreur) { el.innerHTML = `<div class="banner err">${esc(p.erreur)}</div>`; return; }
   const indic = c => { const L = c.reservations, W = L.filter(a => a.s === 'A'); return {
-    'AO réservés': L.length, 'Répondus / réservés': `${L.filter(a => a.s === 'T').length} / ${L.length}`, 'Non traités': W.length, [`En retard (> ${REGLES.seuilsRetard[0]} j)`]: W.filter(a => a.jours > REGLES.seuilsRetard[0]).length,
+    'AO réservés': L.length, 'Répondus / réservés PWise': `${L.filter(a => estPW(a) && a.s === 'T').length} / ${L.filter(estPW).length}`, 'dont OneProcTool': L.filter(a => !estPW(a)).length, 'Non traités': W.length, [`En retard (> ${REGLES.seuilsRetard[0]} j)`]: W.filter(a => a.jours > REGLES.seuilsRetard[0]).length,
     'Non réservés en cours': c.libres.length, 'BM non reconnus': c.nonResolus.length }; };
   const av = indic(p.avant), ap = indic(p.apres);
   const m = p.stats.mails, w = p.stats.pwise;
